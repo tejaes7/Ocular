@@ -259,8 +259,60 @@ review request** — so `/packages/shared/` and `/packages/backend/src/checker/`
 no effective reviewer at all. `@rohith` and `@sumith` are still placeholders and
 still have that problem.
 
+**Third pass — the actual accuracy bug (same PR).**
+
+The first two passes stopped the guessing rung returning garbage but never
+explained *why it was reached on Amazon at all*. Probing a live `amazon.in` page
+answered it: **rung 4 — the site selector packs — was silently broken for every
+site.**
+
+`fromSelectors` called `firstMatch()`, took the one element it returned, and gave
+up if that element's text did not parse. So it skipped only *absent* selectors,
+never *failing* ones — and one present-but-empty node killed the whole list. An
+ordered fallback list only has value if a failing entry is skipped.
+
+Amazon does exactly that:
+
+```
+present, EMPTY   #corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen
+present, EMPTY   #corePriceDisplay_desktop_feature_div .a-price .a-offscreen
+"₹349.00"        #corePrice_feature_div .a-price .a-offscreen
+```
+
+The selectors were correct; the iteration was wrong. Amazon publishes **no JSON-LD
+and no `og:price`** (verified — neither string appears in 2.6 MB of markup), so
+rung 4 is its *only* reliable reader. Live, same page:
+
+| Path | Before | After |
+|---|---|---|
+| rendered | `heuristic` / 349 / low | `selector` / **349** / high |
+| offscreen (`fetch`) | **no-price** | `selector` / **349** / high |
+
+This also shrinks the coverage trade-off from pass one: the heuristic's "decline
+when unrendered and ambiguous" is now a genuine last resort rather than Amazon's
+common path.
+
+Settings page type scale raised too — it is a full browser tab, not the 380px
+popup, and was rendering body copy at 12px and hints at 11px. Overrides live in
+`options.css`, not `tokens.css`, so the popup and in-page panel are untouched.
+
+**Technique worth reusing:** none of this was findable by reading code. Fetching
+the real page and printing, per selector, whether it matched and what text it held
+is what exposed it. Reach for that before theorising about extraction.
+
+95 → 98 tests.
+
+**Two findings handed to Harsha, not changed:**
+- `looksBlocked` is sound — a fetch with no browser UA gets a 3,793-byte stub and
+  is correctly detected; with a Chrome UA the same URL returns the real 2.6 MB page.
+- `scanHtml` reports `title: "Return Instructions"` on a real Amazon page where
+  `#productTitle` holds the right value. Price is correctly `no-price` there, so it
+  is cosmetic for the worker — but a wrong title in a notification would confuse.
+  `htmlscan.js` is his.
+
 **Still open:**
-- Awaiting **Harsha's review** on PR #3 (`shared/**` is amber).
+- Awaiting **Harsha's review** on PR #3 (`shared/**` is amber). Update comment
+  posted explaining the third pass.
 - **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
   The migration runs on the next service-worker startup and will log what it
   dropped.
