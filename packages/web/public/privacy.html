@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ocular — Privacy</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="wordmark" href="/">
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.6" />
+          <circle cx="8" cy="8" r="2.4" fill="currentColor" />
+        </svg>
+        Ocular
+      </a>
+    </header>
+
+    <main class="install">
+      <h1 style="font-size: 34px; max-width: none">Privacy</h1>
+
+      <!--
+        REQUIRED before Chrome Web Store submission — the listing is rejected
+        without a reachable privacy policy URL.
+
+        TODO(sumith + sathwik): verify every claim below against the code before
+        publishing, and add a "last updated" date. If sync ever collects more
+        than what is listed here, this page changes first.
+      -->
+
+      <p style="max-width: 60ch; color: var(--ink-2)">
+        Ocular does not have accounts, does not use analytics, and does not build a
+        profile of you.
+      </p>
+
+      <h2>What stays on your device</h2>
+      <p style="max-width: 60ch; color: var(--ink-2)">
+        The products you watch and their full price history are stored locally, in your
+        browser's extension storage. They are not transmitted anywhere. Removing the
+        extension deletes them — export a backup first if you want to keep them.
+      </p>
+
+      <h2>What Ocular requests over the network</h2>
+      <p style="max-width: 60ch; color: var(--ink-2)">
+        To read a price, Ocular requests the product pages you have asked it to watch,
+        from your own browser, using your existing session. It does not send those pages
+        anywhere else.
+      </p>
+
+      <h2>Optional background sync</h2>
+      <p style="max-width: 60ch; color: var(--ink-2)">
+        Background sync is <strong>off by default</strong>. If you turn it on and supply
+        your own server address, Ocular sends that server the URLs and titles of the
+        products you watch, plus a randomly generated device identifier. That identifier
+        is not linked to an email address, an account, or anything that identifies you.
+        No prices, settings, or browsing history beyond those product URLs are sent.
+      </p>
+
+      <h2>Permissions</h2>
+      <p style="max-width: 60ch; color: var(--ink-2)">
+        Ocular requests access only to the retail sites it supports, so it can read
+        prices on product pages you open. It does not read pages on any other site.
+      </p>
+
+      <h2>Contact</h2>
+      <p style="max-width: 60ch; color: var(--ink-2)">
+        Questions or corrections:
+        <a href="https://github.com/tejaes7/Ocular/issues">open an issue on GitHub</a>.
+      </p>
+    </main>
+
+    <footer class="foot">
+      <span>Ocular</span>
+      <nav><a href="/">Home</a></nav>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "@ocular/web",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Ocular landing page and demo.",
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes serve public -l 3000",
+    "build": "node -e \"console.log('static site — public/ is the build output')\""
+  }
+}

@@ -1,0 +1,43 @@
+node_modules/
+
+# Extension build output.
+# `npm run build` regenerates it, and it is also the folder Chrome loads as an
+# unpacked extension — see the header comment in packages/extension/build.mjs
+# for why the path must stay exactly here.
+/extension/
+
+# Store packages
+*.zip
+
+# Backups exported while testing — these contain real browsing data.
+ocular-backup-*.json
+
+# Python (packages/ai)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+
+# Models and datasets: never commit user data, and binaries don't belong in git.
+packages/ai/data/
+packages/ai/models/
+*.pkl
+*.joblib
+*.onnx
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# Local env
+.env
+.env.local
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

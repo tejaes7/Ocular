@@ -1,0 +1,196 @@
+@import './ui/tokens.css';
+
+body {
+  width: 404px;
+  min-height: 220px;
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top bar ----------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 10px 0 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.wordmark svg { color: var(--ink); }
+
+.topbar__tools { display: flex; gap: 1px; }
+
+/* Current-tab banner ------------------------------------------------------ */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-sunken);
+}
+
+.banner__label {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* List -------------------------------------------------------------------- */
+
+.list { flex: 1; overflow-y: auto; }
+
+.state { padding: 40px 16px; font-size: 12.5px; color: var(--ink-2); }
+.state h2 { margin: 0 0 5px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.state p { margin: 0; max-width: 30ch; line-height: 1.55; }
+.state__dim { color: var(--ink-3); }
+
+/*
+ * Rows, not cards. Structure comes from a hairline and consistent left
+ * alignment; nesting rounded shadow boxes is what made this read as a brochure.
+ */
+.row {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 11px;
+  padding: 12px 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.row:hover, .row:focus-within { background: var(--bg-hover); }
+.row--paused { opacity: 0.55; }
+
+.row__thumb {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  object-fit: contain;
+  background: #fff;
+}
+
+.row__thumb--empty { background: var(--bg-active); border-style: dashed; }
+
+.row__body { min-width: 0; }
+
+.row__head { display: flex; align-items: flex-start; gap: 8px; }
+
+.row__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 450;
+  line-height: 1.4;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.row__title a { color: inherit; text-decoration: none; }
+.row__title a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Tools stay hidden until the row is engaged — keeps the list scannable. */
+.row__tools {
+  display: flex;
+  gap: 1px;
+  flex: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.row:hover .row__tools,
+.row:focus-within .row__tools { opacity: 1; }
+
+@media (hover: none) { .row__tools { opacity: 1; } }
+
+/* Price is the hero: everything else is deliberately quieter than it. */
+.row__price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.amount {
+  font-size: 21px;
+  font-weight: 620;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.delta { font-size: 12px; font-weight: 550; }
+.delta--down { color: var(--down); }
+.delta--up { color: var(--up); }
+.delta--flat { color: var(--ink-3); }
+
+.chart { display: block; width: 100%; height: 40px; margin: 7px 0 6px; }
+
+.row__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.row__meta .sep { opacity: 0.5; }
+
+.row__error {
+  margin-top: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--up);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--up);
+}
+
+/* Alert rule -------------------------------------------------------------- */
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.alert__label { flex: none; }
+.alert select.field { flex: 1; min-width: 0; }
+.alert input.field { width: 76px; flex: none; }
+.alert input[hidden] { display: none; }
+
+/* Status bar -------------------------------------------------------------- */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 13px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--ink-3);
+}

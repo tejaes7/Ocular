@@ -1,0 +1,41 @@
+# Automatic reviewer assignment. See OWNERSHIP.md for the reasoning.
+#
+# Later rules win, so the file reads top-down from general to specific.
+#
+# TODO: replace the placeholder handles below with real GitHub usernames.
+#   @tejaes7 = Sathwik   @rohith = Rohith   @harsha = Harsha   @sumith = Sumith
+
+# Default: repo owner reviews anything not claimed below.
+*                                       @tejaes7
+
+# --- Sathwik: AI + extension -----------------------------------------------
+/packages/ai/                           @tejaes7
+/packages/extension/                    @tejaes7
+/docs/PLAN.md                           @tejaes7
+
+# --- Rohith: backend API, storage, deploy ----------------------------------
+/packages/backend/                      @rohith
+/packages/backend/src/routes/           @rohith
+/packages/backend/src/db/               @rohith
+/packages/backend/src/lib/              @rohith
+/packages/backend/migrations/           @rohith
+/packages/backend/wrangler.toml         @rohith
+
+# --- Harsha: checking pipeline & retailer coverage -------------------------
+/packages/backend/src/checker/          @harsha
+
+# --- Sumith: site ----------------------------------------------------------
+/packages/web/                          @sumith
+# Privacy claims must match what the code actually does.
+/packages/web/public/privacy.html       @sumith @tejaes7
+
+# --- Shared contracts: two reviewers, always -------------------------------
+# Changes here affect the extension, the backend and the AI service at once.
+/packages/shared/                       @tejaes7 @harsha
+/docs/API.md                            @tejaes7 @rohith
+
+# --- Things that break users silently if they change -----------------------
+# The build output path is keyed to every user's stored data. Read the header
+# comment in build.mjs before approving anything that touches it.
+/packages/extension/build.mjs           @tejaes7
+/.github/                               @tejaes7

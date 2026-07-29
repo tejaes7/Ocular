@@ -1,0 +1,25 @@
+{
+  "name": "ocular",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Local-first price watcher — browser extension, sync backend, AI service and site.",
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/extension",
+    "packages/backend",
+    "packages/web"
+  ],
+  "scripts": {
+    "build": "npm run build -w @ocular/extension",
+    "dev": "npm run dev -w @ocular/extension",
+    "zip": "npm run zip -w @ocular/extension",
+    "test": "npm run test --workspaces --if-present",
+    "web": "npm run dev -w @ocular/web",
+    "backend:dev": "npm run dev -w @ocular/backend",
+    "backend:deploy": "npm run deploy -w @ocular/backend"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

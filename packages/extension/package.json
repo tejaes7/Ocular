@@ -1,0 +1,19 @@
+{
+  "name": "@ocular/extension",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Ocular browser extension (Manifest V3).",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "zip": "node build.mjs --prod --zip",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@ocular/shared": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2"
+  }
+}

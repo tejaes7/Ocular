@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch makes the running job pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  javascript:
+    name: JS — test & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test all workspaces
+        run: npm test
+
+      - name: Build the extension
+        run: npm run build
+
+      # The build already fails on a manifest referencing a missing file, but the
+      # bundling guarantees are worth asserting explicitly: a stray ESM import in
+      # a content script fails only at runtime, on the user's machine.
+      - name: Verify bundles are self-contained
+        run: |
+          if grep -rn "^import \|^export " extension/*.js; then
+            echo "::error::ESM syntax survived bundling — content scripts must be classic scripts"
+            exit 1
+          fi
+          if grep -rn "getURL(['\"]lib" extension/*.js; then
+            echo "::error::runtime import of lib/ reintroduced — this breaks under strict page CSP"
+            exit 1
+          fi
+          echo "bundles look self-contained"
+
+      - name: Package
+        run: npm run zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ocular-extension
+          path: extension/
+          retention-days: 14
+
+  python:
+    name: AI — test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -e ".[dev]"
+      - run: pytest -q

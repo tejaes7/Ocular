@@ -1,0 +1,20 @@
+name = "ocular"
+main = "src/index.js"
+compatibility_date = "2026-01-15"
+
+# Free tier: 100k requests/day, unlimited cron triggers, D1 up to 5 GB.
+[[d1_databases]]
+binding = "DB"
+database_name = "ocular"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[triggers]
+# Every 30 minutes. The worker itself only rechecks a product once
+# CHECK_INTERVAL_MINUTES has elapsed, so this is a scan cadence, not a hit rate.
+crons = ["*/30 * * * *"]
+
+[vars]
+CHECK_INTERVAL_MINUTES = "180"
+
+[observability]
+enabled = true

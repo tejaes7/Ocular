@@ -1,0 +1,222 @@
+/**
+ * Design tokens for extension pages (popup, options, onboarding).
+ *
+ * Point of view: this is an instrument, not a brochure.
+ *
+ *   - **Monochrome, with semantic colour only.** There is no brand accent.
+ *     Green and red mean exactly one thing — the price fell or rose — so colour
+ *     always carries information and never decorates.
+ *   - **Hairlines, not cards.** Structure comes from 1px rules and whitespace.
+ *     Nested rounded boxes with drop shadows are what makes a data tool read
+ *     like a landing page.
+ *   - **Tabular figures everywhere.** Prices are compared down a column; they
+ *     have to align. This is most of why the popup now looks deliberate.
+ *
+ * NOT imported by content.css — that stylesheet is injected into retailer pages,
+ * where defining custom properties on :root would leak into their styles.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #ffffff;
+  --bg-sunken: #fbfbfc;
+  --bg-hover: #f6f6f7;
+  --bg-active: #f0f0f2;
+
+  --line: rgba(15, 17, 20, 0.09);
+  --line-strong: rgba(15, 17, 20, 0.18);
+
+  --ink: #0f1114;
+  --ink-2: #5b6069;
+  --ink-3: #8d939c;
+
+  /* Semantic only. Down is good news for a shopper. */
+  --down: #067647;
+  --down-bg: rgba(6, 118, 71, 0.09);
+  --up: #b42318;
+  --up-bg: rgba(180, 35, 24, 0.08);
+  --warn: #8f6800;
+
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  --shadow-panel: 0 1px 2px rgba(15, 17, 20, 0.05), 0 10px 30px rgba(15, 17, 20, 0.09);
+
+  --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0e11;
+    --bg-sunken: #08090b;
+    --bg-hover: #14171c;
+    --bg-active: #1a1e24;
+
+    --line: rgba(255, 255, 255, 0.10);
+    --line-strong: rgba(255, 255, 255, 0.20);
+
+    --ink: #f2f4f7;
+    --ink-2: #9aa1ab;
+    --ink-3: #6c737d;
+
+    --down: #47cd89;
+    --down-bg: rgba(71, 205, 137, 0.12);
+    --up: #f97066;
+    --up-bg: rgba(249, 112, 102, 0.12);
+    --warn: #e5b34a;
+
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 34px rgba(0, 0, 0, 0.55);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Every number in this UI is compared against another number. */
+.num,
+input[type='number'],
+.amount,
+.delta { font-variant-numeric: tabular-nums; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+::-webkit-scrollbar { width: 11px; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3.5px solid var(--bg);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Primitives -------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--bg);
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.btn:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--line-strong); }
+.btn:active:not(:disabled) { background: var(--bg-active); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+/* Primary is near-black, not a brand colour. High contrast, no hue. */
+.btn--primary {
+  border-color: var(--ink);
+  color: var(--bg);
+  background: var(--ink);
+}
+.btn--primary:hover:not(:disabled) { opacity: 0.88; background: var(--ink); border-color: var(--ink); }
+
+.btn--sm { height: 26px; padding: 0 9px; font-size: 12px; }
+.btn--danger:hover:not(:disabled) { color: var(--up); border-color: var(--up); background: var(--up-bg); }
+
+/* Icon-only button, for row tools and the top bar. */
+.iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  background: none;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+
+.iconbtn:hover:not(:disabled) { color: var(--ink); background: var(--bg-hover); border-color: var(--line); }
+.iconbtn:disabled { opacity: 0.4; cursor: default; }
+.iconbtn--danger:hover:not(:disabled) { color: var(--up); border-color: var(--up); background: var(--up-bg); }
+.iconbtn svg { display: block; }
+
+/* Small caps label. Used sparingly — section headers and status flags only. */
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Flags replace pastel pills: a coloured dot plus small caps reads as data. */
+.flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.flag::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.flag--down { color: var(--down); }
+.flag--up { color: var(--up); }
+
+.field {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.field:focus { border-color: var(--line-strong); }
+.field:disabled { opacity: 0.5; }
+select.field { padding-right: 4px; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

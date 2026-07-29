@@ -1,0 +1,280 @@
+/**
+ * Styles injected into retailer pages.
+ *
+ * Two rules govern everything here:
+ *   1. `!important` on every declaration — retailer stylesheets are aggressive
+ *      and frequently ship blanket `button { ... }` resets.
+ *   2. No custom properties on `:root`. This stylesheet shares a document with
+ *      the retailer's own CSS, so tokens are scoped to our own elements to avoid
+ *      leaking into (or being clobbered by) theirs.
+ *
+ * Visual language matches the popup: monochrome, hairlines, tabular figures,
+ * colour reserved for price direction.
+ */
+
+#ocular-monitor-button,
+#ocular-panel,
+.ocular-toast {
+  --oc-bg: #ffffff;
+  --oc-hover: #f6f6f7;
+  --oc-line: rgba(15, 17, 20, 0.11);
+  --oc-ink: #0f1114;
+  --oc-ink-2: #5b6069;
+  --oc-ink-3: #8d939c;
+  --oc-down: #067647;
+  --oc-up: #b42318;
+  --oc-shadow: 0 1px 2px rgba(15, 17, 20, 0.06), 0 12px 34px rgba(15, 17, 20, 0.16);
+  --oc-font: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  #ocular-monitor-button,
+  #ocular-panel,
+  .ocular-toast {
+    --oc-bg: #101318;
+    --oc-hover: #191d23;
+    --oc-line: rgba(255, 255, 255, 0.13);
+    --oc-ink: #f2f4f7;
+    --oc-ink-2: #9aa1ab;
+    --oc-ink-3: #6c737d;
+    --oc-down: #47cd89;
+    --oc-up: #f97066;
+    --oc-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 38px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Button ------------------------------------------------------------------ */
+
+#ocular-monitor-button {
+  all: unset !important;
+
+  position: fixed !important;
+  right: 20px !important;
+  bottom: 20px !important;
+  z-index: 2147483000 !important;
+
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  height: 38px !important;
+  padding: 0 16px !important;
+  border-radius: 19px !important;
+
+  font-family: var(--oc-font) !important;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.005em !important;
+
+  /* Near-black, not a brand blue. Reads as chrome, not as an advert. */
+  color: #fff !important;
+  background: #0f1114 !important;
+  box-shadow: var(--oc-shadow) !important;
+  cursor: pointer !important;
+  transition: transform 0.14s ease, opacity 0.14s ease !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  #ocular-monitor-button { color: #0f1114 !important; background: #f2f4f7 !important; }
+}
+
+#ocular-monitor-button:hover { transform: translateY(-1px) !important; opacity: 0.9 !important; }
+#ocular-monitor-button:focus-visible { outline: 2px solid #fff !important; outline-offset: 2px !important; }
+
+#ocular-monitor-button .ocular-btn__eye {
+  width: 13px !important;
+  height: 13px !important;
+  flex: none !important;
+  border-radius: 50% !important;
+  border: 1.6px solid currentColor !important;
+  position: relative !important;
+}
+
+#ocular-monitor-button .ocular-btn__eye::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 3px !important;
+  border-radius: 50% !important;
+  background: currentColor !important;
+}
+
+/* Tracked state: the dot goes green. The only colour on the button. */
+#ocular-monitor-button.ocular-btn--tracked .ocular-btn__eye { color: var(--oc-down) !important; }
+
+/* Panel ------------------------------------------------------------------- */
+
+#ocular-panel {
+  position: fixed !important;
+  right: 20px !important;
+  bottom: 68px !important;
+  z-index: 2147483001 !important;
+
+  box-sizing: border-box !important;
+  width: 306px !important;
+  max-width: calc(100vw - 40px) !important;
+  padding: 0 !important;
+  border: 1px solid var(--oc-line) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+
+  font-family: var(--oc-font) !important;
+  font-size: 12.5px !important;
+  line-height: 1.45 !important;
+  text-align: left !important;
+  color: var(--oc-ink) !important;
+  background: var(--oc-bg) !important;
+  box-shadow: var(--oc-shadow) !important;
+}
+
+#ocular-panel * {
+  box-sizing: border-box !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  margin: 0 !important;
+}
+
+#ocular-panel .ocular-panel__head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 38px !important;
+  padding: 0 8px 0 13px !important;
+  border-bottom: 1px solid var(--oc-line) !important;
+}
+
+#ocular-panel .ocular-panel__brand {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase !important;
+  color: var(--oc-ink-3) !important;
+}
+
+#ocular-panel .ocular-panel__x {
+  all: unset !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 5px !important;
+  font-size: 17px !important;
+  line-height: 1 !important;
+  color: var(--oc-ink-3) !important;
+  cursor: pointer !important;
+}
+
+#ocular-panel .ocular-panel__x:hover { color: var(--oc-ink) !important; background: var(--oc-hover) !important; }
+
+#ocular-panel .ocular-panel__body { padding: 12px 13px !important; }
+
+#ocular-panel .ocular-panel__title {
+  font-size: 11.5px !important;
+  color: var(--oc-ink-3) !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  margin-bottom: 10px !important;
+}
+
+#ocular-panel .ocular-panel__row {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  padding: 5px 0 !important;
+}
+
+#ocular-panel .ocular-panel__row span { color: var(--oc-ink-3) !important; }
+
+#ocular-panel .ocular-panel__row b {
+  font-weight: 550 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#ocular-panel .ocular-panel__row--hero b {
+  font-size: 19px !important;
+  font-weight: 620 !important;
+  letter-spacing: -0.03em !important;
+}
+
+#ocular-panel .ocular-panel__msg {
+  margin-top: 11px !important;
+  padding-left: 9px !important;
+  border-left: 2px solid var(--oc-line) !important;
+  font-size: 11.5px !important;
+  line-height: 1.5 !important;
+  color: var(--oc-ink-3) !important;
+}
+
+#ocular-panel .ocular-panel__msg--good { color: var(--oc-down) !important; border-left-color: var(--oc-down) !important; }
+#ocular-panel .ocular-panel__msg--bad { color: var(--oc-up) !important; border-left-color: var(--oc-up) !important; }
+
+#ocular-panel .ocular-panel__actions {
+  display: flex !important;
+  gap: 6px !important;
+  padding: 11px 13px !important;
+  border-top: 1px solid var(--oc-line) !important;
+}
+
+#ocular-panel .ocular-panel__actions button {
+  all: unset !important;
+  flex: 1 !important;
+  height: 28px !important;
+  border: 1px solid var(--oc-line) !important;
+  border-radius: 5px !important;
+  font-size: 11.5px !important;
+  font-weight: 550 !important;
+  text-align: center !important;
+  line-height: 26px !important;
+  color: var(--oc-ink) !important;
+  cursor: pointer !important;
+}
+
+#ocular-panel .ocular-panel__actions button:hover { background: var(--oc-hover) !important; }
+#ocular-panel .ocular-panel__actions button:disabled { opacity: 0.45 !important; cursor: default !important; }
+
+#ocular-panel .ocular-panel__foot {
+  padding: 0 13px 10px !important;
+  font-size: 9.5px !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  text-align: right !important;
+  color: var(--oc-ink-3) !important;
+  opacity: 0.7 !important;
+}
+
+/* Toast ------------------------------------------------------------------- */
+
+.ocular-toast {
+  position: fixed !important;
+  right: 20px !important;
+  bottom: 68px !important;
+  z-index: 2147483002 !important;
+
+  max-width: 290px !important;
+  padding: 9px 14px !important;
+  border-radius: 8px !important;
+
+  font-family: var(--oc-font) !important;
+  font-size: 12.5px !important;
+  line-height: 1.4 !important;
+  color: #fff !important;
+  background: #0f1114 !important;
+  box-shadow: var(--oc-shadow) !important;
+
+  opacity: 1 !important;
+  transition: opacity 0.4s ease !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ocular-toast { color: #0f1114 !important; background: #f2f4f7 !important; }
+}
+
+.ocular-toast--out { opacity: 0 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  #ocular-monitor-button, .ocular-toast { transition: none !important; }
+}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ocular</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="wordmark" id="wordmark">Ocular</span>
+      <div class="topbar__tools">
+        <button id="refresh" class="iconbtn" title="Check every product now" aria-label="Check every product now"></button>
+        <button id="export" class="iconbtn" title="Save a backup" aria-label="Save a backup"></button>
+        <button id="settings" class="iconbtn" title="Settings" aria-label="Settings"></button>
+      </div>
+    </header>
+
+    <section id="current" class="banner" hidden></section>
+
+    <main id="list" class="list" aria-live="polite">
+      <div class="state"><span class="state__dim">Loading…</span></div>
+    </main>
+
+    <footer class="statusbar">
+      <span id="summary" class="num">—</span>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
