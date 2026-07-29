@@ -260,19 +260,45 @@ function firstMatch(doc, selectors) {
   return null;
 }
 
+/**
+ * First selector that yields a *parseable price* — not merely the first that
+ * matches an element.
+ *
+ * That distinction is the entire value of an ordered selector list. This used to
+ * call firstMatch(), take the one element it returned, and give up if its text
+ * did not parse — so a single present-but-empty node defeated every remaining
+ * fallback.
+ *
+ * Amazon does exactly that. `#corePriceDisplay_desktop_feature_div .priceToPay
+ * .a-offscreen` is present and **empty** on a fetched product page, while the
+ * third selector in the list holds "₹349.00". The rung therefore always failed on
+ * amazon.in and handed the page to the guessing rung, which is where the wrong
+ * prices came from. Amazon publishes no JSON-LD and no `og:price`, so this rung is
+ * the *only* reliable reader for it.
+ */
 function fromSelectors(doc, selectors, strategy = 'selector') {
-  const el = firstMatch(doc, selectors);
-  if (!el) return null;
-  const parsed = parsePrice(el.getAttribute?.('content') || el.textContent);
-  if (!parsed) return null;
-  return {
-    strategy,
-    price: parsed.value,
-    currency: parsed.currency,
-    inStock: true,
-    title: null,
-    image: null,
-  };
+  for (const selector of selectors || []) {
+    let el;
+    try {
+      el = doc.querySelector(selector);
+    } catch {
+      continue; // A learned selector can be syntactically invalid.
+    }
+    if (!el) continue;
+
+    const parsed = parsePrice(el.getAttribute?.('content') || el.textContent);
+    if (!parsed) continue;
+
+    return {
+      strategy,
+      price: parsed.value,
+      currency: parsed.currency,
+      inStock: true,
+      title: null,
+      image: null,
+    };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
