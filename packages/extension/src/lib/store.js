@@ -12,7 +12,11 @@
  *   meta           -> { schemaVersion, installedAt, lastBackupAt }
  */
 
-export const SCHEMA_VERSION = 2;
+// 3 adds `strategy` / `confidence` provenance to each price point, and a one-time
+// repair that removes readings written before the plausibility gate existed.
+import { repairHistory } from '@ocular/shared/history';
+
+export const SCHEMA_VERSION = 3;
 
 const SETTINGS_KEY = 'settings';
 const PRODUCTS_KEY = 'products';
@@ -93,6 +97,55 @@ export async function saveMeta(patch) {
   const next = { ...(await getMeta()), ...patch };
   await chrome.storage.local.set({ [META_KEY]: next });
   return next;
+}
+
+// --- one-time storage migrations -------------------------------------------
+
+/**
+ * Bring stored data up to SCHEMA_VERSION.
+ *
+ * Idempotent and safe on every startup — the recorded version gates the work, so
+ * a repair never runs twice and never re-examines rows it already cleared.
+ *
+ * v3 removes readings written before the plausibility gate existed. Those rows
+ * have no `strategy`, so a blind-heuristic guess is indistinguishable from a
+ * JSON-LD reading; `repairHistory` judges them against the subset that *is*
+ * verifiable. Without this, a poisoned row keeps dragging the median for the
+ * lifetime of the product, and lands in the training set later.
+ */
+export async function runStorageMigrations() {
+  const meta = await getMeta();
+  const from = meta.schemaVersion || 1;
+  if (from >= SCHEMA_VERSION) return { migrated: false, from };
+
+  const report = { migrated: true, from, to: SCHEMA_VERSION, products: 0, dropped: 0 };
+
+  if (from < 3) {
+    for (const product of await listProducts()) {
+      const { history, dropped } = repairHistory(await getHistory(product.id));
+      if (!dropped.length) continue;
+
+      await setHistory(product.id, history);
+      report.products += 1;
+      report.dropped += dropped.length;
+
+      // `lastPrice` is denormalised onto the product for the popup and the badge.
+      // Leaving it pointing at a reading we just deleted would keep showing the
+      // bad number even though the series is clean.
+      const newest = history[history.length - 1];
+      if (newest && product.lastPrice !== newest.price) {
+        await upsertProduct({ ...product, lastPrice: newest.price, lastInStock: newest.inStock });
+      }
+
+      console.warn(
+        `Ocular: dropped ${dropped.length} unverifiable reading(s) for ${product.id}:`,
+        dropped.map((point) => point.price).join(', ')
+      );
+    }
+  }
+
+  await saveMeta({ schemaVersion: SCHEMA_VERSION });
+  return report;
 }
 
 /** Stable anonymous id, generated on first use. Never tied to an account. */

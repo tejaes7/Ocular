@@ -219,15 +219,48 @@ Rejected readings increment `rejectedReadings` on the product and record
 moved and its selector pack needs attention** — that counter is the early warning
 for the whole collection run.
 
+**Second pass — repair and provenance durability (same branch):**
+
+- `mergeHistory` rebuilt each point field-by-field and therefore **stripped the
+  new `strategy` / `confidence` fields**. Any sync or backup import erased
+  provenance. Fixed; provenance now survives a merge.
+- `repairHistory()` in `shared/history.js` removes readings written before the
+  gate existed. Those rows have no `strategy`, so a blind guess is
+  indistinguishable from a JSON-LD reading. It judges them against the subset
+  that *is* verifiable — rows with a `strategy`, plus any `source: 'page-visit'`
+  row, since the content script always reads a live rendered document and so
+  could never hit the unrendered-heuristic bug.
+  **It deliberately does not use the full-series median.** On the real poisoned
+  data the overall median was 94.75 — the junk value — so judging against it would
+  have deleted the two correct ₹349 rows and kept the three bad ones. With no
+  trusted subset it returns the history untouched; deleting on a guess is the
+  same mistake inverted.
+- `SCHEMA_VERSION` 2 → 3 plus `runStorageMigrations()`, called from both
+  `onInstalled` and `onStartup` (a reloaded unpacked extension does not reliably
+  fire `onInstalled`). Idempotent — the recorded version gates the work. Also
+  corrects the denormalised `lastPrice` on the product, or the popup keeps showing
+  a price that is no longer in the series.
+- `restoreBackup` now repairs **after** merging, so importing a pre-v3 backup can
+  no longer reintroduce the rows the migration just removed. Returns
+  `pointsRejected` alongside `pointsAdded`.
+- `migrate()` gained a v3 step. The repair is not done there on purpose: it needs
+  the merged series to judge against, not the file in isolation.
+
+Verified against the real export: `p2sg5oo`'s `median90` goes from the poisoned
+**94.75 to the correct 349**, three junk rows dropped; the clean product is
+untouched. 88 → 95 tests.
+
 **Still open:**
-- `shared/**` is amber — this branch needs Harsha's review before merge.
-- The existing poisoned rows (₹94.75, ₹8.75) are still in local storage and will
-  skew that product's median. Only ~6 points exist; simplest is to delete and
-  re-add the two products.
-- Backup import goes through `mergeHistory`, which does **not** apply the
-  plausibility gate. Re-importing an old backup reintroduces bad rows.
+- `shared/**` is amber — this branch needs **Harsha's review** before merge.
+- **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
+  The migration runs on the next service-worker startup and will log what it
+  dropped.
 - The anonymous collection endpoint itself. Needs Rohith (transport) and Sumith
   (policy).
+- `packages/backend` does not use `isPlausibleReading` yet. Server readings go
+  through `mergeHistory` on the client so they never overwrite a browser
+  observation, but the worker could still store an implausible reading of its own.
+  Harsha's call.
 
 ### 2026-07-29 — orientation
 

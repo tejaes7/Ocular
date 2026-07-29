@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { isPlausibleReading, mergeHistory, summarizeHistory } from '../src/history.js';
+import { isPlausibleReading, mergeHistory, repairHistory, summarizeHistory } from '../src/history.js';
 
 const point = (ts, price, extra = {}) => ({ ts, lastSeen: ts, price, inStock: true, ...extra });
 
@@ -157,4 +157,90 @@ test('an implausible spike upward is rejected too', () => {
   });
   assert.equal(verdict.ok, false);
   assert.equal(verdict.reason, 'implausible-rise');
+});
+
+// ---------------------------------------------------------------------------
+// repairHistory
+// ---------------------------------------------------------------------------
+
+test('mergeHistory preserves provenance', () => {
+  // Rebuilding a point field-by-field used to drop these, so any sync or backup
+  // import erased the record of which rung produced a reading.
+  const merged = mergeHistory([
+    { ts: 100, lastSeen: 100, price: 349, inStock: true, source: 'check', strategy: 'jsonld', confidence: 'high' },
+  ]);
+  assert.equal(merged[0].strategy, 'jsonld');
+  assert.equal(merged[0].confidence, 'high');
+});
+
+test('repairHistory drops the poisoned rows from the real incident', () => {
+  // Exactly what was on disk: a ₹349 product, correct on every page-visit and
+  // junk on every pre-provenance check.
+  const stored = [
+    { ts: 1, lastSeen: 1, price: 349, inStock: true, source: 'page-visit' },
+    { ts: 2, lastSeen: 2, price: 94.75, inStock: true, source: 'check' },
+    { ts: 3, lastSeen: 3, price: 349, inStock: true, source: 'page-visit' },
+    { ts: 4, lastSeen: 4, price: 94.75, inStock: true, source: 'check' },
+    { ts: 5, lastSeen: 5, price: 8.75, inStock: true, source: 'check' },
+  ];
+
+  const { history, dropped } = repairHistory(stored);
+
+  assert.deepEqual(dropped.map((p) => p.price), [94.75, 94.75, 8.75]);
+  // The two survivors are identical and adjacent once the junk is gone, so they
+  // re-collapse into one compacted point.
+  assert.deepEqual(history.map((p) => p.price), [349]);
+});
+
+test('repairHistory does not judge against the full median', () => {
+  // The whole series median here is 94.75 — the junk value. Judging against it
+  // would delete the two correct readings and keep the three bad ones.
+  const { history } = repairHistory([
+    { ts: 1, lastSeen: 1, price: 349, inStock: true, source: 'page-visit' },
+    { ts: 2, lastSeen: 2, price: 94.75, inStock: true, source: 'check' },
+    { ts: 3, lastSeen: 3, price: 94.75, inStock: true, source: 'check' },
+    { ts: 4, lastSeen: 4, price: 8.75, inStock: true, source: 'check' },
+    { ts: 5, lastSeen: 5, price: 349, inStock: true, source: 'page-visit' },
+  ]);
+  assert.ok(history.every((p) => p.price === 349), JSON.stringify(history));
+});
+
+test('repairHistory leaves a history with no trusted subset untouched', () => {
+  // Nothing to judge against. Deleting on a guess is the same mistake inverted.
+  const stored = [
+    { ts: 1, lastSeen: 1, price: 349, inStock: true, source: 'check' },
+    { ts: 2, lastSeen: 2, price: 94.75, inStock: true, source: 'check' },
+  ];
+  const { history, dropped } = repairHistory(stored);
+  assert.equal(dropped.length, 0);
+  assert.equal(history.length, 2);
+});
+
+test('repairHistory keeps provenance-less rows that are plausible', () => {
+  const { history, dropped } = repairHistory([
+    { ts: 1, lastSeen: 1, price: 349, inStock: true, source: 'page-visit' },
+    { ts: 2, lastSeen: 2, price: 320, inStock: true, source: 'check' },
+  ]);
+  assert.equal(dropped.length, 0);
+  assert.deepEqual(history.map((p) => p.price), [349, 320]);
+});
+
+test('repairHistory never touches rows that carry a strategy', () => {
+  // Those were already judged by the plausibility gate on the way in.
+  const stored = [
+    { ts: 1, lastSeen: 1, price: 349, inStock: true, source: 'page-visit', strategy: 'jsonld' },
+    { ts: 2, lastSeen: 2, price: 5, inStock: true, source: 'check', strategy: 'jsonld' },
+  ];
+  const { dropped } = repairHistory(stored);
+  assert.equal(dropped.length, 0);
+});
+
+test('repairHistory is idempotent', () => {
+  const stored = [
+    { ts: 1, lastSeen: 1, price: 349, inStock: true, source: 'page-visit' },
+    { ts: 2, lastSeen: 2, price: 8.75, inStock: true, source: 'check' },
+  ];
+  const once = repairHistory(stored).history;
+  const twice = repairHistory(once).history;
+  assert.deepEqual(twice, once);
 });

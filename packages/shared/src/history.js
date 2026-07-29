@@ -109,6 +109,65 @@ export function isPlausibleReading({ price, strategy, confidence, stats }) {
 }
 
 /**
+ * Strip unverifiable readings out of a stored history.
+ *
+ * Rows written before provenance existed carry no `strategy`, so nothing
+ * distinguishes a JSON-LD reading from a blind guess. Two kinds of row are
+ * known-good regardless:
+ *
+ *   - anything with a `strategy`, which means it was written after the
+ *     plausibility gate existed and already passed it;
+ *   - anything with `source: 'page-visit'`, which came from the content script.
+ *     That path reads the live `document`, which always has layout, so the
+ *     unrendered-heuristic bug could never affect it.
+ *
+ * Those form the trusted subset, and provenance-less rows are judged against
+ * their median. Note this deliberately does *not* use the full history's median:
+ * when most rows are bad the overall median is bad too, which is exactly the
+ * situation this repairs — a ₹349 product read three times as ₹94.75 and ₹8.75
+ * has a median of ₹94.75, and judging against that would delete the good rows
+ * and keep the junk.
+ *
+ * With no trusted subset there is nothing to judge against, so the history comes
+ * back untouched. Deleting data on a guess is the same mistake pointing the other
+ * way.
+ *
+ * @returns {{history: object[], dropped: object[]}}
+ */
+export function repairHistory(history = []) {
+  const points = history.filter((point) => point && Number.isFinite(point.price));
+  const isTrusted = (point) => Boolean(point.strategy) || point.source === 'page-visit';
+  const trusted = points.filter(isTrusted);
+
+  if (!trusted.length || trusted.length === points.length) {
+    return { history: points, dropped: [] };
+  }
+
+  const sorted = trusted.map((point) => point.price).sort((a, b) => a - b);
+  const stats = { median90: sorted[Math.floor(sorted.length / 2)] };
+
+  const kept = [];
+  const dropped = [];
+
+  for (const point of points) {
+    if (isTrusted(point)) {
+      kept.push(point);
+      continue;
+    }
+    const verdict = isPlausibleReading({
+      price: point.price,
+      strategy: null,
+      confidence: 'low',
+      stats,
+    });
+    (verdict.ok ? kept : dropped).push(point);
+  }
+
+  // Removing a row can leave two identical readings adjacent, so re-collapse.
+  return { history: dropped.length ? mergeHistory(kept) : points, dropped };
+}
+
+/**
  * Union two price histories.
  *
  * Points are ordered by timestamp and consecutive identical readings are
@@ -136,6 +195,12 @@ export function mergeHistory(a = [], b = []) {
         price: point.price,
         inStock: point.inStock !== false,
         source: point.source || 'import',
+        // Provenance has to survive a merge. Rebuilding the point field-by-field
+        // silently dropped these, so any sync or backup import erased the record
+        // of which rung produced a reading — which is the one thing that makes a
+        // suspect row identifiable afterwards.
+        strategy: point.strategy || null,
+        confidence: point.confidence || null,
       });
     }
   }

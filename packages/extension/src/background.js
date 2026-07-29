@@ -30,6 +30,7 @@ import {
   listProducts,
   productId,
   removeProduct,
+  runStorageMigrations,
   saveMeta,
   upsertProduct,
 } from './lib/store.js';
@@ -50,6 +51,9 @@ const appVersion = () => chrome.runtime.getManifest().version;
 // ---------------------------------------------------------------------------
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  // Before anything reads a price: an update may need to repair stored history,
+  // and the badge and popup both derive from it.
+  await runStorageMigrations().catch((error) => console.warn('Ocular: migration failed —', error));
   await scheduleAlarms();
   await refreshBadge();
 
@@ -60,6 +64,9 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 });
 
 chrome.runtime.onStartup.addListener(async () => {
+  // Also here, not just onInstalled: a reloaded unpacked extension does not
+  // always fire onInstalled, and the migration is a no-op once it has run.
+  await runStorageMigrations().catch((error) => console.warn('Ocular: migration failed —', error));
   await scheduleAlarms();
   await refreshBadge();
   // The whole point of sync is the window where Chrome was closed — pull as soon

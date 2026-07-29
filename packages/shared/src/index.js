@@ -23,7 +23,7 @@ export {
   PRICE_TEXT_RE,
 } from './extract.js';
 export { escapeHtml, explainError, money, percentChange, relativeTime } from './format.js';
-export { isPlausibleReading, mergeHistory, summarizeHistory } from './history.js';
+export { isPlausibleReading, mergeHistory, repairHistory, summarizeHistory } from './history.js';
 export { BLOCK_MARKERS, looksBlocked, scanHtml } from './htmlscan.js';
 export {
   canonicalizeUrl,
