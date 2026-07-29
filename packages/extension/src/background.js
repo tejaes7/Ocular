@@ -17,7 +17,7 @@
 import { runCheck } from './checker.js';
 import { evaluateAlert } from '@ocular/shared/alerts';
 import { downloadBackup } from './lib/backup.js';
-import { summarizeHistory } from '@ocular/shared/history';
+import { isPlausibleReading, summarizeHistory } from '@ocular/shared/history';
 import { canonicalizeUrl, siteLabel } from '@ocular/shared/sites';
 import { runSync, syncConfigured } from './lib/sync.js';
 import {
@@ -107,10 +107,49 @@ async function syncIfEnabled() {
 
 /** Shared by scheduled checks and passive content-script observations. */
 async function recordObservation(product, result, source) {
+  const stats = summarizeHistory(await getHistory(product.id));
+
+  // The last gate before a reading becomes permanent. Everything upstream is
+  // written to prefer failing over guessing, but nothing used to stand here, so
+  // a guessed price went straight into storage and into the median. Quarantining
+  // costs one skipped data point; storing a bad one costs a corrupted series and
+  // a false alert. See isPlausibleReading in @ocular/shared/history.
+  const plausible = isPlausibleReading({
+    price: result.price,
+    strategy: result.strategy,
+    confidence: result.confidence,
+    stats,
+  });
+
+  if (!plausible.ok) {
+    console.warn(
+      `Ocular: rejected reading for ${product.id} — ${plausible.reason}`,
+      plausible.detail || ''
+    );
+    // Recorded on the product, never in history: the count is a diagnostic, and
+    // a rising one means a site's markup has moved and the pack needs attention.
+    await upsertProduct({
+      ...product,
+      lastCheckedAt: Date.now(),
+      rejectedReadings: (product.rejectedReadings || 0) + 1,
+      lastRejection: {
+        at: Date.now(),
+        price: result.price,
+        reason: plausible.reason,
+        detail: plausible.detail || null,
+        strategy: result.strategy || null,
+        via: result.via || source,
+      },
+    });
+    return { ok: false, code: plausible.reason, detail: plausible.detail };
+  }
+
   const previousPrice = await appendPricePoint(product.id, {
     price: result.price,
     inStock: result.inStock,
     source,
+    strategy: result.strategy,
+    confidence: result.confidence,
   });
 
   const updated = await upsertProduct({
@@ -129,7 +168,7 @@ async function recordObservation(product, result, source) {
   });
 
   if (previousPrice != null && result.price < previousPrice) {
-    await maybeNotify(updated, previousPrice, result.price);
+    await maybeNotify(updated, previousPrice, result.price, result);
   }
 
   return { ok: true, price: result.price, previousPrice, via: result.via || source };
@@ -161,7 +200,13 @@ async function checkAndRecord(id, { manual = false } = {}) {
 // Alerts
 // ---------------------------------------------------------------------------
 
-async function maybeNotify(product, previousPrice, price) {
+async function maybeNotify(product, previousPrice, price, reading = {}) {
+  // A guessed reading can legitimately enter history — it passed the plausibility
+  // gate — but it must never wake the user. If the drop is real, the next check
+  // from a structured rung confirms it and the alert fires then. One cycle late
+  // and correct beats immediate and wrong.
+  if (reading.confidence === 'low' || reading.strategy === 'heuristic-blind') return;
+
   const settings = await getSettings();
   const stats = summarizeHistory(await getHistory(product.id));
 

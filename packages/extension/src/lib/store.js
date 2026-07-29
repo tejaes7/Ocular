@@ -22,14 +22,23 @@ const DEVICE_KEY = 'deviceId';
 const META_KEY = 'meta';
 const HISTORY_PREFIX = 'hist:';
 
-const MAX_HISTORY_POINTS = 2000;
+// Headroom for a multi-month collection run. At a 30-minute interval a product
+// that changes price on every single check writes ~48 rows/day, which exhausted
+// the old 2000-row cap in about six weeks — silently, by dropping the oldest
+// rows, which are the most valuable ones for establishing a baseline price.
+// Compaction means a well-behaved product uses a tiny fraction of this.
+const MAX_HISTORY_POINTS = 20000;
 
 export const DEFAULT_SETTINGS = {
   checkIntervalMinutes: 180,
   maxChecksPerSweep: 25,
 
   notifyOnAnyDrop: true,
-  minDropPercentToNotify: 1,
+  // A real price move is a few percent at minimum. The old default of 1% meant
+  // any extraction wobble became a notification, and because this rule compares
+  // against the previous reading rather than the median, it is the one alert
+  // path with no protection against a bad reading.
+  minDropPercentToNotify: 5,
 
   // Hidden-tab checking: the answer to retailers blocking plain fetch.
   tabChecks: true,
@@ -148,8 +157,15 @@ export async function setHistory(id, points) {
  * Consecutive identical readings collapse into one point with a moving
  * `lastSeen`, so a product checked hourly for a year is ~12 points, not 8760.
  * Returns the previous distinct price, or null if nothing changed.
+ *
+ * `strategy` and `confidence` are stored per point, not just on the product.
+ * They were previously computed by the extraction ladder and discarded at this
+ * boundary, which made a suspect reading indistinguishable from a trustworthy
+ * one after the fact — and a training set you cannot filter by provenance is a
+ * training set you cannot trust. `source` alone was what made the ₹94.75
+ * incident diagnosable at all; these two make it diagnosable without guesswork.
  */
-export async function appendPricePoint(id, { price, inStock, source }) {
+export async function appendPricePoint(id, { price, inStock, source, strategy, confidence }) {
   const key = HISTORY_PREFIX + id;
   const history = await read(key, []);
   const now = Date.now();
@@ -158,9 +174,25 @@ export async function appendPricePoint(id, { price, inStock, source }) {
   if (last && last.price === price && last.inStock === inStock) {
     last.lastSeen = now;
   } else {
-    history.push({ ts: now, lastSeen: now, price, inStock, source });
+    history.push({
+      ts: now,
+      lastSeen: now,
+      price,
+      inStock,
+      source,
+      strategy: strategy || null,
+      confidence: confidence || null,
+    });
     if (history.length > MAX_HISTORY_POINTS) {
-      history.splice(0, history.length - MAX_HISTORY_POINTS);
+      const dropped = history.length - MAX_HISTORY_POINTS;
+      // Say so. The oldest rows are the ones that establish what a product
+      // normally costs, so losing them quietly skews the median in exactly the
+      // direction that makes a bad price look normal.
+      console.warn(
+        `Ocular: history for ${id} hit ${MAX_HISTORY_POINTS} points; dropping the oldest ${dropped}. ` +
+          'Compaction should make this unreachable — a product that gets here is being misread.'
+      );
+      history.splice(0, dropped);
     }
   }
 

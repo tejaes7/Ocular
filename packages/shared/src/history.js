@@ -42,6 +42,72 @@ export function summarizeHistory(history) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Plausibility gate
+// ---------------------------------------------------------------------------
+
+/** Rungs that read a machine-readable price the retailer published itself. */
+const STRUCTURED_STRATEGIES = new Set(['jsonld', 'meta', 'microdata']);
+/** Rungs aimed at a specific element on a known site. They rot, but they aim. */
+const TARGETED_STRATEGIES = new Set(['selector', 'learned']);
+
+// Deliberately asymmetric. Every observed misread has been an UNDERestimate —
+// per-unit prices, EMI instalments, "you save" figures and the old cheapest-wins
+// tie-break all produce a number below the real one. So the downside band is the
+// tighter of the two.
+const GUESS_MAX_DROP_PCT = 50;
+const GUESS_MAX_RISE_PCT = 100;
+
+/**
+ * Should this reading be allowed into the stored history?
+ *
+ * `docs/ARCHITECTURE.md` states that a wrong price is worse than no price: a bad
+ * reading poisons the history, drags the median down, and fires a false "lowest
+ * ever" alert. Every layer was written to honour that except the one that
+ * actually writes — nothing stood between a guessed price and permanent storage.
+ * This is that check.
+ *
+ * A guessed reading is not rejected for being surprising; it is rejected for
+ * being *unverifiable*. Declining lets the checker escalate to a rung that can
+ * confirm it, so a genuine crash still lands on the next pass.
+ *
+ * @returns {{ok: true} | {ok: false, reason: string, detail?: string}}
+ */
+export function isPlausibleReading({ price, strategy, confidence, stats }) {
+  if (!Number.isFinite(price) || price <= 0) {
+    return { ok: false, reason: 'invalid-price' };
+  }
+
+  // Nothing to compare against yet. Accept, or a new product could never
+  // establish a first data point.
+  const median = stats?.median90;
+  if (!median || median <= 0) return { ok: true };
+
+  const trusted =
+    (STRUCTURED_STRATEGIES.has(strategy) || TARGETED_STRATEGIES.has(strategy)) &&
+    confidence !== 'low';
+  if (trusted) return { ok: true };
+
+  const deltaPct = ((price - median) / median) * 100;
+
+  if (deltaPct < -GUESS_MAX_DROP_PCT) {
+    return {
+      ok: false,
+      reason: 'implausible-drop',
+      detail: `${strategy || 'unknown'} read ${price}, ${Math.abs(deltaPct).toFixed(0)}% below the usual ${median}`,
+    };
+  }
+  if (deltaPct > GUESS_MAX_RISE_PCT) {
+    return {
+      ok: false,
+      reason: 'implausible-rise',
+      detail: `${strategy || 'unknown'} read ${price}, ${deltaPct.toFixed(0)}% above the usual ${median}`,
+    };
+  }
+
+  return { ok: true };
+}
+
 /**
  * Union two price histories.
  *

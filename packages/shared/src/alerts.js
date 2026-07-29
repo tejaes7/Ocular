@@ -26,9 +26,17 @@ export function evaluateAlert({ target, stats, previousPrice, price, settings = 
     }
   }
 
+  // The one rule that measures against the previous reading rather than the
+  // median — that is what "any drop" means, so it stays. But it inherits the
+  // weakness that comes with it: a price inflated for a week and then "cut" back
+  // toward normal is a fall from the previous reading while still being a rise
+  // against what the product usually costs. Requiring the new price to be at or
+  // below the median gives this rule the same fake-sale resistance the three
+  // above it get for free, without changing what it means.
   if (settings.notifyOnAnyDrop && previousPrice > 0) {
     const dropPercent = ((previousPrice - price) / previousPrice) * 100;
-    if (dropPercent >= (settings.minDropPercentToNotify ?? 0) && dropPercent > 0) {
+    const notAboveUsual = !median || price <= median;
+    if (dropPercent >= (settings.minDropPercentToNotify ?? 0) && dropPercent > 0 && notAboveUsual) {
       return {
         fire: true,
         kind: 'drop',

@@ -82,3 +82,43 @@ test('a malformed target does not throw or fire', () => {
     assert.equal(evaluateAlert({ target, stats, price: 1, settings: quiet }).fire, false);
   }
 });
+
+const loud = { notifyOnAnyDrop: true, minDropPercentToNotify: 5 };
+
+test('any-drop ignores a fall that is still above the usual price', () => {
+  // The pre-sale hike: held at 10000, inflated to 20000, "cut" to 11000. That is
+  // a 45% fall from the previous reading and simultaneously a 10% rise over what
+  // the product actually costs. This rule used to fire on it — the only one of
+  // the four without fake-sale resistance.
+  const verdict = evaluateAlert({
+    target: null,
+    stats,
+    previousPrice: 20000,
+    price: 11000,
+    settings: loud,
+  });
+  assert.equal(verdict.fire, false);
+});
+
+test('any-drop still fires on a genuine fall below the usual price', () => {
+  const verdict = evaluateAlert({
+    target: null,
+    stats,
+    previousPrice: 10000,
+    price: 8500,
+    settings: loud,
+  });
+  assert.equal(verdict.fire, true);
+  assert.equal(verdict.kind, 'drop');
+});
+
+test('any-drop still works before a median exists', () => {
+  const verdict = evaluateAlert({
+    target: null,
+    stats: null,
+    previousPrice: 10000,
+    price: 8500,
+    settings: loud,
+  });
+  assert.equal(verdict.fire, true);
+});

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { mergeHistory, summarizeHistory } from '../src/history.js';
+import { isPlausibleReading, mergeHistory, summarizeHistory } from '../src/history.js';
 
 const point = (ts, price, extra = {}) => ({ ts, lastSeen: ts, price, inStock: true, ...extra });
 
@@ -74,4 +74,87 @@ test('summarizeHistory returns null for an empty history', () => {
   assert.equal(summarizeHistory([]), null);
   assert.equal(summarizeHistory(null), null);
   assert.equal(summarizeHistory(undefined), null);
+});
+
+// ---------------------------------------------------------------------------
+// isPlausibleReading
+//
+// Cover for the ₹94.75 incident: a pack-of-4 priced at ₹349 was stored as
+// ₹94.75 (its per-unit price) and then ₹8.75, both from the guessing rung on an
+// unrendered document. Nothing stood between a guessed price and permanent
+// storage, so the median moved and a false "price dropped 73%" alert fired.
+// ---------------------------------------------------------------------------
+
+const usual = { median90: 349, min: 349, max: 379, current: 349, first: 349, points: 12 };
+
+test('a guessed reading far below the usual price is rejected', () => {
+  const verdict = isPlausibleReading({
+    price: 94.75,
+    strategy: 'heuristic-blind',
+    confidence: 'low',
+    stats: usual,
+  });
+  assert.equal(verdict.ok, false);
+  assert.equal(verdict.reason, 'implausible-drop');
+});
+
+test('a structured reading far below the usual price is accepted', () => {
+  // Real crashes happen. A retailer-published price is not second-guessed.
+  const verdict = isPlausibleReading({
+    price: 94.75,
+    strategy: 'jsonld',
+    confidence: 'high',
+    stats: usual,
+  });
+  assert.equal(verdict.ok, true);
+});
+
+test('a structured reading is still distrusted when it reports low confidence', () => {
+  const verdict = isPlausibleReading({
+    price: 8.75,
+    strategy: 'selector',
+    confidence: 'low',
+    stats: usual,
+  });
+  assert.equal(verdict.ok, false);
+});
+
+test('a guessed reading close to the usual price is accepted', () => {
+  const verdict = isPlausibleReading({
+    price: 320,
+    strategy: 'heuristic',
+    confidence: 'medium',
+    stats: usual,
+  });
+  assert.equal(verdict.ok, true);
+});
+
+test('the first reading for a product is always accepted', () => {
+  // No baseline exists yet, so there is nothing to be implausible against.
+  const verdict = isPlausibleReading({
+    price: 94.75,
+    strategy: 'heuristic-blind',
+    confidence: 'low',
+    stats: null,
+  });
+  assert.equal(verdict.ok, true);
+});
+
+test('zero and negative prices are rejected outright', () => {
+  for (const price of [0, -5, Number.NaN, Infinity]) {
+    const verdict = isPlausibleReading({ price, strategy: 'jsonld', stats: usual });
+    assert.equal(verdict.ok, false, `accepted ${price}`);
+    assert.equal(verdict.reason, 'invalid-price');
+  }
+});
+
+test('an implausible spike upward is rejected too', () => {
+  const verdict = isPlausibleReading({
+    price: 40_000,
+    strategy: 'heuristic',
+    confidence: 'medium',
+    stats: usual,
+  });
+  assert.equal(verdict.ok, false);
+  assert.equal(verdict.reason, 'implausible-rise');
 });

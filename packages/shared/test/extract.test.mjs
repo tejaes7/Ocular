@@ -120,6 +120,95 @@ test('a learned selector takes priority over the built-in site pack', () => {
   assert.equal(result.strategy, 'learned');
 });
 
+// ---------------------------------------------------------------------------
+// Unrendered documents — the offscreen / `fetch` path
+//
+// Regression cover for a real incident. A pack-of-4 listed at ₹349 was recorded
+// as ₹94.75 and then ₹8.75 on consecutive `fetch` checks, while `page-visit`
+// readings from the same page were correct throughout. Two compounding causes:
+//
+//   1. The heuristic's strongest signals (font size, line-through) come from
+//      getComputedStyle, which is unreachable on a DOMParser document. They
+//      evaluated to zero instead of failing, collapsing every score into a tie.
+//   2. The tie-break was `|| a.value - b.value` — ascending — so a tie returned
+//      the cheapest currency-shaped string on the page.
+//
+// Together those guaranteed an underestimate on every unrendered check, which
+// the alert layer then announced as a price drop.
+// ---------------------------------------------------------------------------
+
+/** Mirrors offscreen.js: a parsed document has no browsing context. */
+const parseUnrendered = (html) =>
+  new (new JSDOM('').window.DOMParser)().parseFromString(html, 'text/html');
+
+test('an unrendered document really does lack a browsing context', () => {
+  // If this ever fails the two tests below are silently not testing anything.
+  assert.equal(parseUnrendered('<body></body>').defaultView, null);
+});
+
+test('unrendered + ambiguous candidates declines rather than picking the cheapest', () => {
+  const doc = parseUnrendered(`<html><body><h1>Toilet Seat Lifter (Pack of 4)</h1>
+    <div><span>₹349</span></div>
+    <div><span>₹94.75</span></div>
+    <div><span>₹8.75</span></div>
+    </body></html>`);
+
+  const result = extractProduct(doc, 'https://www.amazon.in/dp/B09SGFGPM9');
+
+  // Declining lets the checker escalate to a real tab, which has layout.
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'no-price');
+});
+
+test('the same page rendered reads the real price', () => {
+  const doc = parse(`<html><body><h1>Toilet Seat Lifter (Pack of 4)</h1>
+    <div class="selling-price"><span style="font-size:28px">₹349</span></div>
+    <div><span style="font-size:11px">₹94.75 per count</span></div>
+    </body></html>`);
+
+  const result = extractProduct(doc, 'https://www.amazon.in/dp/B09SGFGPM9');
+
+  assert.equal(result.price, 349);
+  assert.equal(result.strategy, 'heuristic');
+});
+
+test('a per-unit price never outranks the pack price', () => {
+  const doc = parse(`<html><body><h1>Pack of 4</h1>
+    <div><span>₹379</span></div>
+    <div><span>₹94.75</span><span>per count</span></div>
+    </body></html>`);
+
+  assert.equal(extractProduct(doc, 'https://shop.example.com/p/1').price, 379);
+});
+
+test('an unrendered document still reads structured data happily', () => {
+  // Declining above must not have broken the rungs that do work without layout —
+  // JSON-LD and meta are exactly how server-side extraction is meant to work.
+  const doc = parseUnrendered(`<html><head>
+    <script type="application/ld+json">{"@type":"Product","name":"Kettle",
+      "offers":{"@type":"Offer","price":"1299","priceCurrency":"INR"}}</script>
+    </head><body><h1>Kettle</h1><span>₹63</span></body></html>`);
+
+  const result = extractProduct(doc, 'https://shop.example.com/p/kettle');
+
+  assert.equal(result.price, 1299);
+  assert.equal(result.strategy, 'jsonld');
+});
+
+test('a repeated price is agreement, not ambiguity', () => {
+  // The same figure rendered twice must not read as an unresolvable tie.
+  const doc = parseUnrendered(`<html><body><h1>Kettle</h1>
+    <div><span>₹1,299</span></div>
+    <div><span>₹1,299</span></div>
+    </body></html>`);
+
+  const result = extractProduct(doc, 'https://shop.example.com/p/kettle');
+
+  assert.equal(result.ok, true);
+  assert.equal(result.price, 1299);
+  assert.equal(result.strategy, 'heuristic-blind');
+});
+
 test('buildPriceSnippet stays small and keeps the real candidates', () => {
   const doc = parse(`<html><body><h1>Generic Kettle</h1>
     <div><s><span>₹2,499</span></s></div>
