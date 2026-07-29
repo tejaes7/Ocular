@@ -2,8 +2,11 @@
 #
 # Later rules win, so the file reads top-down from general to specific.
 #
-# TODO: replace the placeholder handles below with real GitHub usernames.
-#   @tejaes7 = Sathwik   @rohith = Rohith   @harsha = Harsha   @sumith = Sumith
+# Real handles:  @tejaes7 = Sathwik   @harsha20112986-droid = Harsha
+#
+# TODO: @rohith and @sumith are still placeholders. GitHub does not error on a
+# handle it cannot resolve — it just silently skips the review request, so those
+# two paths currently have no effective reviewer.
 
 # Default: repo owner reviews anything not claimed below.
 *                                       @tejaes7
@@ -22,7 +25,7 @@
 /packages/backend/wrangler.toml         @rohith
 
 # --- Harsha: checking pipeline & retailer coverage -------------------------
-/packages/backend/src/checker/          @harsha
+/packages/backend/src/checker/          @harsha20112986-droid
 
 # --- Sumith: site ----------------------------------------------------------
 /packages/web/                          @sumith
@@ -31,7 +34,7 @@
 
 # --- Shared contracts: two reviewers, always -------------------------------
 # Changes here affect the extension, the backend and the AI service at once.
-/packages/shared/                       @tejaes7 @harsha
+/packages/shared/                       @tejaes7 @harsha20112986-droid
 /docs/API.md                            @tejaes7 @rohith
 
 # --- Things that break users silently if they change -----------------------

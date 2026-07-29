@@ -11,7 +11,7 @@
  * products added since, and must not truncate histories that have grown.
  */
 
-import { mergeHistory } from '@ocular/shared/history';
+import { mergeHistory, repairHistory } from '@ocular/shared/history';
 import {
   SCHEMA_VERSION,
   getHistory,
@@ -92,6 +92,15 @@ export function migrate(data) {
     out.version = 2;
   }
 
+  if (out.version < 3) {
+    // v3 added `strategy` / `confidence` provenance to price points. Nothing to
+    // backfill — the fields are absent, and absent is exactly what marks a row as
+    // unverifiable. The repair itself is deliberately not done here: it needs the
+    // *merged* series to judge against, so restoreBackup applies repairHistory
+    // after the union rather than to the file in isolation.
+    out.version = 3;
+  }
+
   return out;
 }
 
@@ -155,7 +164,7 @@ export async function downloadBackup(appVersion, { silent = false } = {}) {
 /**
  * Merge a backup into current storage.
  *
- * @returns {{added: number, merged: number, pointsAdded: number}}
+ * @returns {{added: number, merged: number, pointsAdded: number, pointsRejected: number}}
  */
 export async function restoreBackup(raw, { includeSettings = false } = {}) {
   const check = validateBackup(raw);
@@ -169,6 +178,7 @@ export async function restoreBackup(raw, { includeSettings = false } = {}) {
   let added = 0;
   let merged = 0;
   let pointsAdded = 0;
+  let pointsRejected = 0;
 
   for (const incoming of data.products) {
     const current = existing.get(incoming.id) || null;
@@ -178,8 +188,13 @@ export async function restoreBackup(raw, { includeSettings = false } = {}) {
     const incomingHistory = data.history?.[incoming.id] || [];
     if (incomingHistory.length) {
       const before = await getHistory(incoming.id);
-      const union = mergeHistory(before, incomingHistory);
+      // Repair after merging, not before. An old backup predates the plausibility
+      // gate, so its rows carry no provenance and importing one would otherwise
+      // reintroduce exactly the readings the v3 migration just removed — with the
+      // merge being idempotent, that would happen silently and repeatedly.
+      const { history: union, dropped } = repairHistory(mergeHistory(before, incomingHistory));
       pointsAdded += Math.max(0, union.length - before.length);
+      pointsRejected += dropped.length;
       await setHistory(incoming.id, union);
     }
   }
@@ -190,5 +205,5 @@ export async function restoreBackup(raw, { includeSettings = false } = {}) {
     await saveSettings(rest);
   }
 
-  return { added, merged, pointsAdded };
+  return { added, merged, pointsAdded, pointsRejected };
 }

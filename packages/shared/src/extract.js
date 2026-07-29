@@ -283,11 +283,55 @@ const DEMOTE_RE = /\b(m\.?r\.?p|list price|was|save|you save|off|emi|per month|d
 const PROMOTE_RE = /\b(price|deal|offer|selling|our price|now)\b/i;
 
 /**
+ * Per-unit pricing, which retailers show right next to the pack price.
+ *
+ * A pack of 4 listed at ₹379 also renders "₹94.75 per count". Reading the unit
+ * price as the selling price is a silent 4x underestimate that looks exactly
+ * like a price drop — observed in the wild on amazon.in.
+ */
+const UNIT_PRICE_RE =
+  /(per\s*(count|unit|piece|item|pc|tablet|capsule|sheet|100\s*(g|ml)|kg|g|ml|l|litre|liter)|\/\s*(count|unit|piece|pc|kg|g|ml|l)\b|\beach\b)/i;
+
+/** A tie this narrow means the two candidates are not meaningfully separated. */
+const DECISIVE_MARGIN = 3;
+
+/**
+ * Is this document rendered, or just parsed?
+ *
+ * `DOMParser` documents have no renderer, so `getComputedStyle` reports nothing
+ * geometric. That matters enormously here: font size and line-through are the
+ * heuristic's two strongest signals, and on a parsed document they silently
+ * evaluate to zero rather than failing. Every candidate then scores almost the
+ * same and the ranking becomes meaningless.
+ *
+ * The offscreen document (used for every `fetch` check) parses HTML without
+ * rendering it, so this returns false there and true in a real tab or content
+ * script.
+ */
+function hasLayout(doc) {
+  // The discriminator is the browsing context, not a geometry probe. A
+  // DOMParser document is not attached to one, so `defaultView` is null per
+  // spec and getComputedStyle is unreachable. A document in a real tab or
+  // content script always has a view.
+  try {
+    return typeof doc.defaultView?.getComputedStyle === 'function';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Score every element whose *own* text looks like a price and pick the best.
  * Cues: struck-through text is a list price, "M.R.P" is a list price, being
  * near the <h1> is good, being enormous on screen is good.
+ *
+ * Refuses to answer rather than guessing when the two leading candidates are
+ * not clearly separated and there is no layout to separate them with. A wrong
+ * price is worse than no price: it poisons the stored history, drags the median
+ * down and fires a bogus "lowest ever" alert.
  */
 function fromHeuristic(doc) {
+  const layout = hasLayout(doc);
   const candidates = [];
   const heading = doc.querySelector('h1');
 
@@ -307,6 +351,12 @@ function fromHeuristic(doc) {
     if (DEMOTE_RE.test(text) || DEMOTE_RE.test(context)) score -= 6;
     if (PROMOTE_RE.test(context)) score += 3;
 
+    // A unit price is a real price, just not the one the shopper pays. Check
+    // the surrounding text too: the "per count" label is usually a sibling node,
+    // so the price element's own text is only "₹94.75".
+    const nearby = `${text} ${el.parentElement?.textContent?.slice(0, 120) || ''}`;
+    if (UNIT_PRICE_RE.test(nearby)) score -= 10;
+
     // Struck-through markup almost always means "old price".
     if (el.closest('s, del, strike')) score -= 8;
 
@@ -323,17 +373,41 @@ function fromHeuristic(doc) {
   }
 
   if (!candidates.length) return null;
-  candidates.sort((a, b) => b.score - a.score || a.value - b.value);
+
+  // Rank on score ONLY. The previous tie-break was `|| a.value - b.value`,
+  // ascending — so whenever scores tied it returned the cheapest
+  // currency-shaped string on the page. Combined with the zeroed-out geometric
+  // signals above, that made every unrendered check a guaranteed underestimate,
+  // which the alert layer then reported as a price drop. Ties are ambiguity, and
+  // ambiguity must not silently resolve to "cheapest".
+  candidates.sort((a, b) => b.score - a.score);
   const best = candidates[0];
 
+  // Everything scoring within a hair of the leader is a genuine rival. Compare
+  // DISTINCT values across that band rather than just the top two: a price sits
+  // in both a <div> and its <span>, so both are scored, and the duplicate would
+  // otherwise always look like corroboration and hide a real three-way tie.
+  const contenders = new Set(
+    candidates.filter((c) => best.score - c.score < DECISIVE_MARGIN).map((c) => c.value)
+  );
+  const ambiguous = contenders.size > 1;
+
+  // Without layout there is nothing left to break a tie with, so decline. The
+  // ladder's structured rungs (JSON-LD, meta) are the right way to read an
+  // unrendered document — that is exactly what htmlscan.js does server-side —
+  // and declining lets the checker escalate to a real tab, which has layout.
+  if (ambiguous && !layout) return null;
+
   return {
-    strategy: 'heuristic',
+    // Distinguished in stored history so unrendered readings can be filtered
+    // out of a training set later.
+    strategy: layout ? 'heuristic' : 'heuristic-blind',
     price: best.value,
     currency: best.currency,
     inStock: true,
     title: null,
     image: null,
-    confidence: candidates.length > 1 && best.score === candidates[1].score ? 'low' : 'medium',
+    confidence: ambiguous ? 'low' : layout ? 'medium' : 'low',
   };
 }
 

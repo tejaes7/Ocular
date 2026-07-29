@@ -42,6 +42,131 @@ export function summarizeHistory(history) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Plausibility gate
+// ---------------------------------------------------------------------------
+
+/** Rungs that read a machine-readable price the retailer published itself. */
+const STRUCTURED_STRATEGIES = new Set(['jsonld', 'meta', 'microdata']);
+/** Rungs aimed at a specific element on a known site. They rot, but they aim. */
+const TARGETED_STRATEGIES = new Set(['selector', 'learned']);
+
+// Deliberately asymmetric. Every observed misread has been an UNDERestimate —
+// per-unit prices, EMI instalments, "you save" figures and the old cheapest-wins
+// tie-break all produce a number below the real one. So the downside band is the
+// tighter of the two.
+const GUESS_MAX_DROP_PCT = 50;
+const GUESS_MAX_RISE_PCT = 100;
+
+/**
+ * Should this reading be allowed into the stored history?
+ *
+ * `docs/ARCHITECTURE.md` states that a wrong price is worse than no price: a bad
+ * reading poisons the history, drags the median down, and fires a false "lowest
+ * ever" alert. Every layer was written to honour that except the one that
+ * actually writes — nothing stood between a guessed price and permanent storage.
+ * This is that check.
+ *
+ * A guessed reading is not rejected for being surprising; it is rejected for
+ * being *unverifiable*. Declining lets the checker escalate to a rung that can
+ * confirm it, so a genuine crash still lands on the next pass.
+ *
+ * @returns {{ok: true} | {ok: false, reason: string, detail?: string}}
+ */
+export function isPlausibleReading({ price, strategy, confidence, stats }) {
+  if (!Number.isFinite(price) || price <= 0) {
+    return { ok: false, reason: 'invalid-price' };
+  }
+
+  // Nothing to compare against yet. Accept, or a new product could never
+  // establish a first data point.
+  const median = stats?.median90;
+  if (!median || median <= 0) return { ok: true };
+
+  const trusted =
+    (STRUCTURED_STRATEGIES.has(strategy) || TARGETED_STRATEGIES.has(strategy)) &&
+    confidence !== 'low';
+  if (trusted) return { ok: true };
+
+  const deltaPct = ((price - median) / median) * 100;
+
+  if (deltaPct < -GUESS_MAX_DROP_PCT) {
+    return {
+      ok: false,
+      reason: 'implausible-drop',
+      detail: `${strategy || 'unknown'} read ${price}, ${Math.abs(deltaPct).toFixed(0)}% below the usual ${median}`,
+    };
+  }
+  if (deltaPct > GUESS_MAX_RISE_PCT) {
+    return {
+      ok: false,
+      reason: 'implausible-rise',
+      detail: `${strategy || 'unknown'} read ${price}, ${deltaPct.toFixed(0)}% above the usual ${median}`,
+    };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Strip unverifiable readings out of a stored history.
+ *
+ * Rows written before provenance existed carry no `strategy`, so nothing
+ * distinguishes a JSON-LD reading from a blind guess. Two kinds of row are
+ * known-good regardless:
+ *
+ *   - anything with a `strategy`, which means it was written after the
+ *     plausibility gate existed and already passed it;
+ *   - anything with `source: 'page-visit'`, which came from the content script.
+ *     That path reads the live `document`, which always has layout, so the
+ *     unrendered-heuristic bug could never affect it.
+ *
+ * Those form the trusted subset, and provenance-less rows are judged against
+ * their median. Note this deliberately does *not* use the full history's median:
+ * when most rows are bad the overall median is bad too, which is exactly the
+ * situation this repairs — a ₹349 product read three times as ₹94.75 and ₹8.75
+ * has a median of ₹94.75, and judging against that would delete the good rows
+ * and keep the junk.
+ *
+ * With no trusted subset there is nothing to judge against, so the history comes
+ * back untouched. Deleting data on a guess is the same mistake pointing the other
+ * way.
+ *
+ * @returns {{history: object[], dropped: object[]}}
+ */
+export function repairHistory(history = []) {
+  const points = history.filter((point) => point && Number.isFinite(point.price));
+  const isTrusted = (point) => Boolean(point.strategy) || point.source === 'page-visit';
+  const trusted = points.filter(isTrusted);
+
+  if (!trusted.length || trusted.length === points.length) {
+    return { history: points, dropped: [] };
+  }
+
+  const sorted = trusted.map((point) => point.price).sort((a, b) => a - b);
+  const stats = { median90: sorted[Math.floor(sorted.length / 2)] };
+
+  const kept = [];
+  const dropped = [];
+
+  for (const point of points) {
+    if (isTrusted(point)) {
+      kept.push(point);
+      continue;
+    }
+    const verdict = isPlausibleReading({
+      price: point.price,
+      strategy: null,
+      confidence: 'low',
+      stats,
+    });
+    (verdict.ok ? kept : dropped).push(point);
+  }
+
+  // Removing a row can leave two identical readings adjacent, so re-collapse.
+  return { history: dropped.length ? mergeHistory(kept) : points, dropped };
+}
+
 /**
  * Union two price histories.
  *
@@ -70,6 +195,12 @@ export function mergeHistory(a = [], b = []) {
         price: point.price,
         inStock: point.inStock !== false,
         source: point.source || 'import',
+        // Provenance has to survive a merge. Rebuilding the point field-by-field
+        // silently dropped these, so any sync or backup import erased the record
+        // of which rung produced a reading — which is the one thing that makes a
+        // suspect row identifiable afterwards.
+        strategy: point.strategy || null,
+        confidence: point.confidence || null,
       });
     }
   }
