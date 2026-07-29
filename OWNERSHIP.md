@@ -1,4 +1,4 @@
-# Who owns what
+# Who owns what to do
 
 The repo is split so four people can work at once without editing the same
 files. **Find your name, work inside your paths, open a PR for anything else.**
