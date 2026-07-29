@@ -250,8 +250,17 @@ Verified against the real export: `p2sg5oo`'s `median90` goes from the poisoned
 **94.75 to the correct 349**, three junk rows dropped; the clean product is
 untouched. 88 → 95 tests.
 
+**PR: https://github.com/tejaes7/Ocular/pull/3** — `fix/extraction-provenance` →
+`main`, 12 files, +964/−23, reviewer `@harsha20112986-droid`.
+
+Also fixed on the way: `.github/CODEOWNERS` used the placeholder handle `@harsha`.
+GitHub does not error on a handle it cannot resolve — it **silently skips the
+review request** — so `/packages/shared/` and `/packages/backend/src/checker/` had
+no effective reviewer at all. `@rohith` and `@sumith` are still placeholders and
+still have that problem.
+
 **Still open:**
-- `shared/**` is amber — this branch needs **Harsha's review** before merge.
+- Awaiting **Harsha's review** on PR #3 (`shared/**` is amber).
 - **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
   The migration runs on the next service-worker startup and will log what it
   dropped.
