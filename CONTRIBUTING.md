@@ -1,5 +1,5 @@
 # Contributing
-
+The Project:
 Four people, one repo. These conventions exist so nobody's afternoon is spent
 resolving a merge conflict that shouldn't have happened.
 
