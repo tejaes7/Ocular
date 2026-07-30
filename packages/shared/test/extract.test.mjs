@@ -106,6 +106,62 @@ test('a page with no price reports failure rather than guessing', () => {
   assert.equal(result.title, 'About us');
 });
 
+test('an empty leading selector does not defeat the rest of the pack', () => {
+  // The real amazon.in shape, and the cause of the wrong prices. Amazon ships
+  // `#corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen` PRESENT and
+  // EMPTY. fromSelectors used to take the first matching *element* and give up
+  // when its text did not parse, so rung 4 always failed on Amazon and handed the
+  // page to the guessing rung — even though a later selector holds the price.
+  // Amazon publishes no JSON-LD and no og:price, so rung 4 is its only reliable
+  // reader.
+  const doc = parse(`<html><body><h1>Pack of 4</h1>
+    <div id="corePriceDisplay_desktop_feature_div">
+      <span class="priceToPay"><span class="a-offscreen"></span></span>
+    </div>
+    <div id="corePrice_feature_div">
+      <span class="a-price"><span class="a-offscreen">₹349.00</span></span>
+    </div>
+    <div><span>₹94.75</span><span>per count</span></div>
+    </body></html>`);
+
+  const result = extractProduct(doc, 'https://www.amazon.in/dp/B09SGFGPM9');
+
+  assert.equal(result.price, 349);
+  assert.equal(result.strategy, 'selector');
+});
+
+test('the pack still reads correctly with no layout at all', () => {
+  // The `fetch` path. This is what previously fell through to the guesser.
+  const doc = parseUnrendered(`<html><body><h1>Pack of 4</h1>
+    <div id="corePriceDisplay_desktop_feature_div">
+      <span class="priceToPay"><span class="a-offscreen"></span></span>
+    </div>
+    <div id="corePrice_feature_div">
+      <span class="a-price"><span class="a-offscreen">₹349.00</span></span>
+    </div>
+    <div><span>₹8.75</span></div>
+    </body></html>`);
+
+  const result = extractProduct(doc, 'https://www.amazon.in/dp/B09SGFGPM9');
+
+  assert.equal(result.price, 349);
+  assert.equal(result.strategy, 'selector');
+});
+
+test('a selector list with nothing parseable still falls through', () => {
+  // Guard against over-correcting: if no selector yields a price the rung must
+  // still decline so the ladder can continue.
+  const doc = parse(`<html><body><h1>Kettle</h1>
+    <div id="corePrice_feature_div"><span class="a-price"><span class="a-offscreen">Currently unavailable</span></span></div>
+    <meta property="product:price:amount" content="1299">
+    </body></html>`);
+
+  const result = extractProduct(doc, 'https://www.amazon.in/dp/B09SGFGPM8');
+
+  assert.equal(result.price, 1299);
+  assert.equal(result.strategy, 'meta');
+});
+
 test('a learned selector takes priority over the built-in site pack', () => {
   const doc = parse(`<html><body>
     <div id="corePriceDisplay_desktop_feature_div"><span class="a-offscreen">₹4,499</span></div>
