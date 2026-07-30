@@ -174,20 +174,24 @@ label 1 if the price drops at least `X%` below it within `N` days. Start
 
 ## Session log
 
-### 2026-07-30 — PR #7 merged with the checker's success path deleted; PR #8 opened to restore it
+### 2026-07-30 — PR #7 merged with the checker's success path deleted; restored in PR #8
 
-**`main` is currently collecting nothing.** PR #7 (`e6926c7`, Harsha) rewrote
+**Resolved same day — PR #8 merged (`ae482dd`), `main` collects again.** Stale-head
+check run on that merge and it was clean: second parent is the branch tip and
+`origin/main..branch` is empty. What follows is the record of what went wrong.
+
+**`main` was collecting nothing for ~40 minutes.** PR #7 (`e6926c7`, Harsha) rewrote
 `checkOne`'s failure branch in `checker/cron.js` and lost the success branch with
-it. `recordSuccess` survives only as an unused import on line 18 — nothing calls
+it. `recordSuccess` survived only as an unused import on line 18 — nothing called
 it. It is the only writer of the `prices` table and the only thing that resets
-`fail_count` and advances `last_checked_at`, so on `main` right now a successful
-check stores no price, and `last_checked_at` never moves — which means
-`dueProducts` keeps returning the same rows and the cron refetches them every
-tick, forever. Silent total data loss on the collection run, plus the refetch
-loop is precisely how a retailer decides to block the worker.
+`fail_count` and advances `last_checked_at`, so a successful check stored no
+price, and `last_checked_at` never moved — which means `dueProducts` would keep
+returning the same rows and the cron would refetch them every tick, forever.
+Silent total data loss on the collection run, plus that refetch loop is precisely
+how a retailer decides to block the worker.
 
-**PR #8** (`fix/checker-success-path`, `67da2fd`) restores the call and is green.
-It keeps everything worth keeping from #7: `failureReasonFromResponse`, the
+**PR #8** (`fix/checker-success-path`, `67da2fd`) restored the call. It keeps
+everything worth keeping from #7: `failureReasonFromResponse`, the
 structured `[Checker]` logging, currency normalisation, the repeated-slash
 collapse in `canonicalizeUrl`, and Harsha's `node --test` auto-discovery fix —
 which is a better fix than routing the glob through `sh`, and is now the script
@@ -223,10 +227,6 @@ head; this one needs checking at the *branch* end. **Rebase before quoting a tes
 count**, otherwise the number describes a tree nobody is merging.
 
 **Still open:**
-- **Blocking `main`:** land PR #8. Until it merges, the checker writes nothing —
-  and this is now the reason Rohith's deploy must wait. Deploying the current
-  `main` would produce the refetch loop against real retailers, which is the one
-  failure the whole checker design is built to avoid.
 - **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
   The v3 migration runs on the next service-worker startup and logs what it
   dropped. Still not done, still the only way to confirm `repairHistory` behaves
@@ -237,7 +237,10 @@ count**, otherwise the number describes a tree nobody is merging.
   behavioural decision on his path, not a regression fix. His `scanHtml` Amazon
   title issue is partly addressed by the entity decoding in #7, not confirmed
   fixed.
-- Handed to Rohith: deploy the backend — **after #8**, per the first item.
+- Handed to Rohith: deploy the backend. Unblocked again now that #8 has merged —
+  but note it was unsafe to deploy for the window `e6926c7..ae482dd`, and the
+  general point stands: **check that the checker's write path is intact before
+  deploying**, because the failure mode is invisible from the outside.
 - Handed to Sumith, unchanged: **`privacy.html` contradicts the ratified
   collection plan.** It states "No prices, settings, or browsing history beyond
   those product URLs are sent"; anonymous collection sends exactly that. The page
