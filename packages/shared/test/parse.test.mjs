@@ -93,3 +93,9 @@ test('siteLabel names known stores and falls back to the hostname', () => {
   assert.equal(siteLabel('https://www.flipkart.com/x/p/y?pid=1'), 'Flipkart');
   assert.equal(siteLabel('https://shop.example.com/p/x'), 'shop.example.com');
 });
+test('canonicalizeUrl collapses repeated slashes', () => {
+  assert.equal(
+    canonicalizeUrl('https://example.com//product///phone////'),
+    'https://example.com/product/phone'
+  );
+});
