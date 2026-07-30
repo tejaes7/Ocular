@@ -170,6 +170,59 @@ label 1 if the price drops at least `X%` below it within `N` days. Start
 
 ## Session log
 
+### 2026-07-30 — PR #3 merged, but it dropped the accuracy fix (branch `fix/selector-fallback`)
+
+**PR #3 is merged** (`c76c3e6`, by Harsha, 02:35 IST). Everything from passes one
+and two is on `main`: `hasLayout()`, the score-only tie-break, `UNIT_PRICE_RE`,
+`isPlausibleReading()`, `repairHistory()`, `SCHEMA_VERSION` 3 + migrations,
+provenance through merges, alert gating on low confidence.
+
+**The merge captured a stale head and silently dropped two commits.** The merge
+commit's second parent is `af75e9c` — the commit *before* the third pass:
+
+```
+c76c3e6  parents = a1b1ff6  af75e9c
+                            └── not 32f5120, the branch tip
+```
+
+`4c6a9b8` (the `fromSelectors` fix) and `32f5120` (its worklog entry) were pushed
+~11 minutes before the merge and never landed. Verified directly against
+`origin/main`: it still reads `const el = firstMatch(doc, selectors)`.
+
+**Nothing in the GitHub UI flags this.** #3 shows as fully merged, the branch shows
+as merged, and the dropped commits are still reachable on the head ref — so the
+only way to catch it is to diff the branch against `main` after the merge, or check
+the merge commit's parents. Worth doing routinely: `git log --oneline
+origin/main..<branch>` should be empty after a merge, and here it wasn't.
+
+Consequence while `main` was in that state: rung 4 dead on every site → Amazon
+reads fall to the heuristic → `confidence: 'low'` → `isPlausibleReading` and
+`maybeNotify` (both merged) correctly refuse them. So the passes that shipped were
+actively discarding the readings the pass that didn't ship would have made valid.
+**Under the collect-then-train plan that is the worst possible pairing to ship
+half of** — five months of correctly-rejected garbage instead of selector reads.
+
+**Fix: PR #4** — https://github.com/tejaes7/Ocular/pull/4. The two commits
+cherry-picked onto current `main`, clean, no conflicts, no new work. 4 files,
++198/−42. 98 tests green (74 shared + 12 extension + 12 backend); both CI jobs
+pass. CODEOWNERS auto-requested `@harsha20112986-droid` — confirming the handle fix
+in `5f8dddf` works, since #3 had to be requested by hand.
+
+The two findings handed to Harsha (sound `looksBlocked`, wrong `scanHtml` title on
+Amazon) are restated in #4's description, because #3 being closed buries them.
+
+**Still open:**
+- **Harsha's review on PR #4** (`shared/**` is his).
+- **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
+  The v3 migration runs on the next service-worker startup and logs what it
+  dropped. Still not done — and it is now the only way to confirm `repairHistory`
+  behaves on the real profile rather than on the export.
+- The anonymous collection endpoint. Needs Rohith (transport) and Sumith (policy).
+- `packages/backend` still does not use `isPlausibleReading`. Harsha's call.
+- Tasks 0–7 below are all untouched. Task 2 (synthetic generator) is void under the
+  ratified no-synthetic-data decision; the table above still lists it as open and
+  should be corrected when someone next edits it.
+
 ### 2026-07-29 — data-quality fixes (branch `fix/extraction-provenance`)
 
 **Decision ratified: no synthetic training data.** Ship the deterministic
