@@ -174,6 +174,81 @@ label 1 if the price drops at least `X%` below it within `N` days. Start
 
 ## Session log
 
+### 2026-07-30 — PR #7 merged with the checker's success path deleted; PR #8 opened to restore it
+
+**`main` is currently collecting nothing.** PR #7 (`e6926c7`, Harsha) rewrote
+`checkOne`'s failure branch in `checker/cron.js` and lost the success branch with
+it. `recordSuccess` survives only as an unused import on line 18 — nothing calls
+it. It is the only writer of the `prices` table and the only thing that resets
+`fail_count` and advances `last_checked_at`, so on `main` right now a successful
+check stores no price, and `last_checked_at` never moves — which means
+`dueProducts` keeps returning the same rows and the cron refetches them every
+tick, forever. Silent total data loss on the collection run, plus the refetch
+loop is precisely how a retailer decides to block the worker.
+
+**PR #8** (`fix/checker-success-path`, `67da2fd`) restores the call and is green.
+It keeps everything worth keeping from #7: `failureReasonFromResponse`, the
+structured `[Checker]` logging, currency normalisation, the repeated-slash
+collapse in `canonicalizeUrl`, and Harsha's `node --test` auto-discovery fix —
+which is a better fix than routing the glob through `sh`, and is now the script
+in both packages. Also folded in: `decodeHtmlEntities` decoded `&amp;` first, so
+an escaped `&amp;lt;` became `<` instead of `&lt;` (moved last); the `scanHtml`
+JSDoc block had been left documenting `normalizeCurrency`, which was inserted
+between the comment and its function; 25 unrelated `"peer": true` markers
+stripped from `package-lock.json`, reverted.
+
+**Green CI merged a broken write path, and that is the lesson.** #7 added 26
+backend tests and reported 75/75 passing. All of them cover pure helpers —
+`failureReasonFromResponse`, `backoffFor`, `selectBatch`. None touch the write
+path, so none could fail. #8 adds two `checkOne` tests over a recording D1 stub
+that assert on *what was written* rather than on the return value (`checkOne`
+returns nothing); verified they fail with the `recordSuccess` call removed.
+**A function whose only observable effect is a write needs a test that inspects
+the write.** Passing tests next to an untested effect read as coverage and are
+not.
+
+**Third silent-failure bug in three days, same shape.** `firstMatch` skipping
+absent-but-not-failing selectors; a CODEOWNERS handle that resolves but lacks
+write access; now a dropped write in a function that returns nothing either way.
+All three are **a failure that is indistinguishable from success at the point
+where you would notice.** The previous entry called this shape worth suspecting
+directly — it recurred within a day, so it is the standing first hypothesis on
+this repo, not an observation.
+
+**New staleness variant, related to the #3 dropped-commit failure.** #7 was
+branched from a fork point predating PRs #3–#6 and validated there, so its
+"49/49 shared tests passing" was measured on a tree missing 26 shared test files
+— that suite is 75 on `main`. The existing habit checks the *merge* for a stale
+head; this one needs checking at the *branch* end. **Rebase before quoting a test
+count**, otherwise the number describes a tree nobody is merging.
+
+**Still open:**
+- **Blocking `main`:** land PR #8. Until it merges, the checker writes nothing —
+  and this is now the reason Rohith's deploy must wait. Deploying the current
+  `main` would produce the refetch loop against real retailers, which is the one
+  failure the whole checker design is built to avoid.
+- **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
+  The v3 migration runs on the next service-worker startup and logs what it
+  dropped. Still not done, still the only way to confirm `repairHistory` behaves
+  on the real profile rather than on the export.
+- Handed to Harsha, still his and unchanged by #8: `checker/cron.js` stores
+  `result.price` with **no `isPlausibleReading` gate**. #8 restores the call
+  exactly as it was and deliberately does not add the gate — that is a
+  behavioural decision on his path, not a regression fix. His `scanHtml` Amazon
+  title issue is partly addressed by the entity decoding in #7, not confirmed
+  fixed.
+- Handed to Rohith: deploy the backend — **after #8**, per the first item.
+- Handed to Sumith, unchanged: **`privacy.html` contradicts the ratified
+  collection plan.** It states "No prices, settings, or browsing history beyond
+  those product URLs are sent"; anonymous collection sends exactly that. The page
+  changes *before* collection ships. Amber, so it returns here for review.
+- The collection endpoint itself, once the policy is right.
+- **Process question raised by this near-miss, for the team:**
+  `packages/backend/src/checker/` is Harsha's own CODEOWNERS path, so his PR had
+  no reviewer with a stake in the file and CI was the only gate. A gate that
+  cannot see a missing write is not a gate. Worth deciding whether checker
+  changes need a non-owner reviewer.
+
 ### 2026-07-30 — PR #4 and #5 merged; all four CODEOWNERS handles now real
 
 **PR #4 merged** (`17a4186`). The `fromSelectors` fix is finally on `main` — rung 4
