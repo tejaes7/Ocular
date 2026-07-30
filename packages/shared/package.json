@@ -10,8 +10,8 @@
     "./*": "./src/*.js"
   },
   "scripts": {
-  "test": "node --test"
-},
+    "test": "node --test"
+  },
   "devDependencies": {
     "jsdom": "^24.1.3"
   }

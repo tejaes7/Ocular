@@ -190,11 +190,7 @@ export function canonicalizeUrl(urlString) {
 
   for (const param of TRACKING_PARAMS) url.searchParams.delete(param);
   url.hash = '';
-  url.pathname = (
-  url.pathname
-    .replace(/\/{2,}/g, '/')
-    .replace(/\/+$/, '')
-) || '/';
+  url.pathname = url.pathname.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/';
   return url.toString();
 }
 

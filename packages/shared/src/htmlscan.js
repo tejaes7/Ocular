@@ -59,46 +59,42 @@ function metaContent(html, key) {
   return null;
 }
 
+// &amp; is decoded last on purpose: decoding it first turns a literally-escaped
+// "&amp;lt;" into "<" instead of the "&lt;" the page actually meant to show.
 function decodeHtmlEntities(text) {
   if (!text) return text;
 
   return text
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 function titleFrom(html) {
   const og = metaContent(html, 'og:title');
-if (og) {
-  return decodeHtmlEntities(og.trim()).slice(0, 200);
-}
+  if (og) return decodeHtmlEntities(og.trim()).slice(0, 200);
 
   const h1 = html.match(/<h1[^>]*>([\s\S]{0,300}?)<\/h1>/i);
   if (h1) {
     const text = h1[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (text) {
-  return decodeHtmlEntities(text).slice(0, 200);
-}
+    if (text) return decodeHtmlEntities(text).slice(0, 200);
   }
 
   const title = html.match(/<title[^>]*>([\s\S]{0,300}?)<\/title>/i);
   return title
-  ? decodeHtmlEntities(
-      title[1].replace(/\s+/g, ' ').trim()
-    ).slice(0, 200)
-  : null;
+    ? decodeHtmlEntities(title[1].replace(/\s+/g, ' ').trim()).slice(0, 200)
+    : null;
+}
+
+function normalizeCurrency(code) {
+  return code ? code.trim().toUpperCase() : null;
 }
 
 /**
  * @returns {{ok: true, price, currency, inStock, title, image, strategy} | {ok: false, reason}}
  */
-function normalizeCurrency(code) {
-  return code ? code.trim().toUpperCase() : null;
-}
-
 export function scanHtml(html, url) {
   if (typeof html !== 'string' || !html) return { ok: false, reason: 'empty' };
   if (looksBlocked(html)) return { ok: false, reason: 'blocked' };
@@ -134,16 +130,16 @@ export function scanHtml(html, url) {
       'INR';
 
     const availability = metaContent(html, 'product:availability') || '';
-   return {
-  ok: true,
-  price: parsed.value,
-  currency: normalizeCurrency(currency),
-  inStock: !/outofstock|out_of_stock/i.test(availability),
-  title,
-  image,
-  strategy: 'meta',
-  url,
-};
+    return {
+      ok: true,
+      price: parsed.value,
+      currency: normalizeCurrency(currency),
+      inStock: !/outofstock|out_of_stock/i.test(availability),
+      title,
+      image,
+      strategy: 'meta',
+      url,
+    };
   }
 
   return { ok: false, reason: 'no-price', title, url };
