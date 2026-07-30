@@ -40,9 +40,13 @@ export async function runCron(env) {
   });
 
   for (const product of selectBatch(candidates)) {
-    await checkOne(env, product).catch((error) =>
-      console.error('check failed', product.id, error)
-    );
+   await checkOne(env, product).catch((error) => {
+  console.error('[Checker]', {
+    productId: product.id,
+    host: product.hostname,
+    error: error.message,
+  });
+});
   }
 }
 
@@ -69,35 +73,60 @@ export function selectBatch(candidates) {
 export function backoffFor(failures) {
   return BACKOFF_STEPS_MS[Math.min(failures - 1, BACKOFF_STEPS_MS.length - 1)];
 }
+export function failureReasonFromResponse(status) {
+  switch (status) {
+    case 404:
+      return 'gone';
 
+    case 403:
+      return 'forbidden';
+
+    case 429:
+      return 'rate-limited';
+
+    default:
+      if (status >= 500) {
+        return 'server-error';
+      }
+
+      return 'blocked';
+  }
+}
 async function checkOne(env, product) {
   const now = Date.now();
   let result;
 
   try {
     const response = await fetchPage(product.url);
-    result = response.ok
-      ? scanHtml(await response.text(), product.canonical_url)
-      : { ok: false, reason: response.status === 404 ? 'gone' : 'blocked' };
+   result = response.ok
+  ? scanHtml(await response.text(), product.canonical_url)
+  : {
+      ok: false,
+      reason: failureReasonFromResponse(response.status),
+    };
   } catch (error) {
     result = { ok: false, reason: error.name === 'AbortError' ? 'timeout' : 'fetch-failed' };
   }
 
   if (!result.ok) {
-    const failures = (product.fail_count || 0) + 1;
-    await recordFailure(env, product, {
-      now,
-      failures,
-      blockedUntil: now + backoffFor(failures),
-      reason: result.reason,
-    });
-    return;
-  }
+  const failures = (product.fail_count || 0) + 1;
+  const blockedUntil = now + backoffFor(failures);
 
-  await recordSuccess(env, product, {
-    now,
-    price: result.price,
-    inStock: result.inStock,
-    title: result.title,
+  console.error('[Checker]', {
+    productId: product.id,
+    host: product.hostname,
+    reason: result.reason,
+    failures,
+    blockedUntil: new Date(blockedUntil).toISOString(),
   });
+
+  await recordFailure(env, product, {
+    now,
+    failures,
+    blockedUntil,
+    reason: result.reason,
+  });
+
+  return;
+}
 }
