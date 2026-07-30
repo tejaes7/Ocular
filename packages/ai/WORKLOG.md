@@ -1,8 +1,12 @@
 # AI worklog — Sathwik
 
-Running context for the AI track. **Append to this at the end of every working
-session**, newest entry at the bottom. It exists so a new session (human or
-assistant) can be brought fully up to speed by reading this one file.
+Running context for the AI track. **Write an entry at the end of every working
+session**, newest at the *top* of the session log so the current state is the
+first thing you read. It exists so a new session (human or assistant) can be
+brought fully up to speed by reading this one file.
+
+Each entry carries its own "Still open" list. Only the newest one is current —
+earlier lists are a record of what was open then, not a to-do.
 
 Owner: Sathwik. Scope: `packages/ai/`, `packages/extension/`, plus review duty on
 `packages/shared/` and `docs/API.md`.
@@ -170,6 +174,51 @@ label 1 if the price drops at least `X%` below it within `N` days. Start
 
 ## Session log
 
+### 2026-07-30 — PR #4 and #5 merged; all four CODEOWNERS handles now real
+
+**PR #4 merged** (`17a4186`). The `fromSelectors` fix is finally on `main` — rung 4
+works on every site again. Stale-head check run on this merge and it was clean:
+second parent `06258dd` *is* the branch tip and `origin/main..branch` is empty. The
+check is worth keeping as a habit, not a one-off; it is the only thing that catches
+the #3 failure.
+
+**PR #5 merged** (`62a8104`) — `@rohith` → `@rohithkrishna070`, `@sumith` →
+`@sumithraj207`. All four handles now resolve *and* hold write access, so review
+requests actually route. `packages/backend/**` and `packages/web/**` had no
+effective reviewer at all before this.
+
+**The handle I was given was wrong, and it would have failed silently.**
+`@sumithraj20` returns 404; the real account is `@sumithraj207`. Committing the
+first one would have reproduced the exact bug being fixed — `packages/web` still
+unguarded, nothing anywhere reporting it. Caught by cross-checking
+`gh api repos/tejaes7/Ocular/collaborators`, which is the authoritative source
+here: **a CODEOWNERS entry only works if the handle resolves *and* has write
+access on the repo.** Verifying resolution alone is not sufficient. The check is
+now documented in the CODEOWNERS header.
+
+Generalisation worth carrying: this is the second silent-failure bug in two days
+(the first being `firstMatch` skipping absent but not failing selectors). Both
+share a shape — **a lookup that returns nothing on failure, in a position where
+nothing is indistinguishable from fine.** Worth suspecting that shape directly.
+
+**Still open:**
+- **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
+  The v3 migration runs on the next service-worker startup and logs what it
+  dropped. Still not done — and it is the only way to confirm `repairHistory`
+  behaves on the real profile rather than on the export. This is now the sole
+  item on the critical path.
+- Handed to Harsha, unchanged: `scanHtml` wrong title on Amazon (`htmlscan.js`),
+  and `checker/cron.js:99` storing `result.price` with no `isPlausibleReading`
+  gate. Neither is urgent; both are his paths.
+- Handed to Rohith: deploy the backend (`OWNERSHIP.md` calls it the
+  highest-value task in the repo; nothing there has run against real Cloudflare).
+  Blocks Harsha's per-host block-rate measurement.
+- Handed to Sumith: **`privacy.html` contradicts the ratified collection plan.**
+  It states "No prices, settings, or browsing history beyond those product URLs
+  are sent" — anonymous collection sends exactly that. The page changes *before*
+  collection ships, not after. Amber, so it comes back here for review.
+- The collection endpoint itself, once the policy is right.
+
 ### 2026-07-30 — PR #3 merged, but it dropped the accuracy fix (branch `fix/selector-fallback`)
 
 **PR #3 is merged** (`c76c3e6`, by Harsha, 02:35 IST). Everything from passes one
@@ -211,7 +260,7 @@ in `5f8dddf` works, since #3 had to be requested by hand.
 The two findings handed to Harsha (sound `looksBlocked`, wrong `scanHtml` title on
 Amazon) are restated in #4's description, because #3 being closed buries them.
 
-**Still open:**
+**Still open at the time of writing** (superseded by the entry above — #4 merged):
 - **Harsha's review on PR #4** (`shared/**` is his).
 - **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
   The v3 migration runs on the next service-worker startup and logs what it
