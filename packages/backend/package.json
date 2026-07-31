@@ -4,6 +4,7 @@
   "private": true,
   "description": "Cloudflare Worker that checks prices while the browser is closed.",
   "type": "module",
+
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -12,9 +13,12 @@
     "db:local": "wrangler d1 execute ocular --file=./migrations/0001_init.sql --local",
     "test": "node --test test/"
   },
+
   "dependencies": {
-    "@ocular/shared": "*"
+    "@ocular/shared": "*",
+    "jose": "^6.2.5"
   },
+
   "devDependencies": {
     "wrangler": "^3.99.0"
   }
