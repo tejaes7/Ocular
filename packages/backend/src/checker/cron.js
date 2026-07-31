@@ -40,9 +40,13 @@ export async function runCron(env) {
   });
 
   for (const product of selectBatch(candidates)) {
-    await checkOne(env, product).catch((error) =>
-      console.error('check failed', product.id, error)
-    );
+    await checkOne(env, product).catch((error) => {
+      console.error('[Checker]', {
+        productId: product.id,
+        host: product.hostname,
+        error: error.message,
+      });
+    });
   }
 }
 
@@ -70,30 +74,65 @@ export function backoffFor(failures) {
   return BACKOFF_STEPS_MS[Math.min(failures - 1, BACKOFF_STEPS_MS.length - 1)];
 }
 
-async function checkOne(env, product) {
+export function failureReasonFromResponse(status) {
+  switch (status) {
+    case 404:
+      return 'gone';
+
+    case 403:
+      return 'forbidden';
+
+    case 429:
+      return 'rate-limited';
+
+    default:
+      if (status >= 500) {
+        return 'server-error';
+      }
+
+      return 'blocked';
+  }
+}
+
+// fetchImpl is injectable so the write path can be tested without real network I/O.
+export async function checkOne(env, product, fetchImpl = fetchPage) {
   const now = Date.now();
   let result;
 
   try {
-    const response = await fetchPage(product.url);
+    const response = await fetchImpl(product.url);
     result = response.ok
       ? scanHtml(await response.text(), product.canonical_url)
-      : { ok: false, reason: response.status === 404 ? 'gone' : 'blocked' };
+      : { ok: false, reason: failureReasonFromResponse(response.status) };
   } catch (error) {
     result = { ok: false, reason: error.name === 'AbortError' ? 'timeout' : 'fetch-failed' };
   }
 
   if (!result.ok) {
     const failures = (product.fail_count || 0) + 1;
+    const blockedUntil = now + backoffFor(failures);
+
+    console.error('[Checker]', {
+      productId: product.id,
+      host: product.hostname,
+      reason: result.reason,
+      failures,
+      blockedUntil: new Date(blockedUntil).toISOString(),
+    });
+
     await recordFailure(env, product, {
       now,
       failures,
-      blockedUntil: now + backoffFor(failures),
+      blockedUntil,
       reason: result.reason,
     });
     return;
   }
 
+  // recordSuccess is the only writer of the prices table, and the only thing that
+  // clears fail_count and advances last_checked_at. Dropping it does not just lose
+  // the reading — it leaves the product permanently due, so the cron refetches it
+  // every tick forever.
   await recordSuccess(env, product, {
     now,
     price: result.price,

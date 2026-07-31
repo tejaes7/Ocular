@@ -2,8 +2,19 @@
 #
 # Later rules win, so the file reads top-down from general to specific.
 #
-# TODO: replace the placeholder handles below with real GitHub usernames.
-#   @tejaes7 = Sathwik   @rohith = Rohith   @harsha = Harsha   @sumith = Sumith
+# Handles, all four verified against the API and against the repo's collaborator
+# list — a handle must resolve *and* have write access, or the request is skipped:
+#
+#   @tejaes7               Sathwik    AI + extension
+#   @harsha20112986-droid  Harsha     checking pipeline & retailer coverage
+#   @rohithkrishna070      Rohith     backend API, storage, deploy
+#   @sumithraj207          Sumith     landing page & site
+#
+# Before adding or changing a handle here, check it: `gh api users/<handle>`.
+# GitHub does not error on a handle it cannot resolve — it silently skips the
+# review request, so a typo leaves a path with no effective reviewer and nothing
+# anywhere says so. This file had that problem for @rohith and @sumith, which is
+# why PR #3 went unreviewed.
 
 # Default: repo owner reviews anything not claimed below.
 *                                       @tejaes7
@@ -14,25 +25,25 @@
 /docs/PLAN.md                           @tejaes7
 
 # --- Rohith: backend API, storage, deploy ----------------------------------
-/packages/backend/                      @rohith
-/packages/backend/src/routes/           @rohith
-/packages/backend/src/db/               @rohith
-/packages/backend/src/lib/              @rohith
-/packages/backend/migrations/           @rohith
-/packages/backend/wrangler.toml         @rohith
+/packages/backend/                      @rohithkrishna070
+/packages/backend/src/routes/           @rohithkrishna070
+/packages/backend/src/db/               @rohithkrishna070
+/packages/backend/src/lib/              @rohithkrishna070
+/packages/backend/migrations/           @rohithkrishna070
+/packages/backend/wrangler.toml         @rohithkrishna070
 
 # --- Harsha: checking pipeline & retailer coverage -------------------------
-/packages/backend/src/checker/          @harsha
+/packages/backend/src/checker/          @harsha20112986-droid
 
 # --- Sumith: site ----------------------------------------------------------
-/packages/web/                          @sumith
+/packages/web/                          @sumithraj207
 # Privacy claims must match what the code actually does.
-/packages/web/public/privacy.html       @sumith @tejaes7
+/packages/web/public/privacy.html       @sumithraj207 @tejaes7
 
 # --- Shared contracts: two reviewers, always -------------------------------
 # Changes here affect the extension, the backend and the AI service at once.
-/packages/shared/                       @tejaes7 @harsha
-/docs/API.md                            @tejaes7 @rohith
+/packages/shared/                       @tejaes7 @harsha20112986-droid
+/docs/API.md                            @tejaes7 @rohithkrishna070
 
 # --- Things that break users silently if they change -----------------------
 # The build output path is keyed to every user's stored data. Read the header
