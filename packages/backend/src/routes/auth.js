@@ -13,13 +13,13 @@ export async function getCurrentUser(request, env) {
         }, 401);
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
     let firebaseUser;
 
     try {
 
-        firebaseUser = await verifyFirebaseToken(token);
+        firebaseUser = await verifyFirebaseToken(token, env);
 
     } catch (err) {
         console.error("Firebase verification failed:",err);

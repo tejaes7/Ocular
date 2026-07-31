@@ -7,13 +7,14 @@ const JWKS = createRemoteJWKSet(
     new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
 );
 
-const PROJECT_ID = "ocularx-59561";   // <-- Replace if your Firebase Project ID is different
+const DEFAULT_PROJECT_ID = "ocularx-59561";
 
-export async function verifyFirebaseToken(token) {
+export async function verifyFirebaseToken(token, env = {}) {
+    const projectId = env?.FIREBASE_PROJECT_ID || DEFAULT_PROJECT_ID;
 
     const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `https://securetoken.google.com/${PROJECT_ID}`,
-        audience: PROJECT_ID,
+        issuer: `https://securetoken.google.com/${projectId}`,
+        audience: projectId,
     });
 
     return {

@@ -8,7 +8,7 @@
     "build": "node build.mjs",
     "dev": "node build.mjs --watch",
     "zip": "node build.mjs --prod --zip",
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "dependencies": {
     "@ocular/shared": "*"
