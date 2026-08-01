@@ -1,0 +1,309 @@
+openapi: 3.1.0
+info:
+  title: Ocular Sync Worker API
+  version: 0.2.0
+  description: |
+    Cloudflare Worker API that checks prices while the browser is closed
+    and synchronizes watchlists across devices without user accounts.
+servers:
+  - url: https://ocular-sync.workers.dev
+    description: Production Cloudflare Worker
+  - url: http://localhost:8787
+    description: Local Wrangler Dev environment
+
+paths:
+  /health:
+    get:
+      summary: Service readiness and database connection check
+      description: Returns 200 OK when service and D1 database are healthy, 503 Service Unavailable when degraded.
+      responses:
+        '200':
+          description: Healthy service and database connection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Degraded database connection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /sync:
+    post:
+      summary: Synchronize watchlist and fetch server-observed prices
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncRequest'
+      responses:
+        '200':
+          description: Successful sync
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '429':
+          $ref: '#/components/responses/429TooManyRequests'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+
+  /recovery/generate:
+    post:
+      summary: Generate an anonymous 6-character recovery code for device watchlist
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Generated recovery code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryGenerateResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '429':
+          $ref: '#/components/responses/429TooManyRequests'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+
+  /recovery/claim:
+    post:
+      summary: Claim a recovery code and transfer watchlist to caller device
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  example: X7K9B2
+                  minLength: 6
+                  maxLength: 6
+      responses:
+        '200':
+          description: Watchlist claimed and transferred successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Watchlist transferred successfully
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '404':
+          description: Invalid or expired recovery code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/429TooManyRequests'
+        '500':
+          $ref: '#/components/responses/500InternalError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: UUID
+      description: Extension-generated device UUID token
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - ok
+        - service
+        - status
+        - db
+        - time
+      properties:
+        ok:
+          type: boolean
+          example: true
+        service:
+          type: string
+          example: ocular-sync
+        status:
+          type: string
+          enum: [healthy, degraded]
+          example: healthy
+        db:
+          type: string
+          enum: [connected, disconnected]
+          example: connected
+        time:
+          type: integer
+          example: 1769000000000
+
+    SyncRequest:
+      type: object
+      properties:
+        since:
+          type: integer
+          minimum: 0
+          example: 1768900000000
+        products:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/ProductInput'
+
+    ProductInput:
+      type: object
+      required:
+        - id
+        - canonicalUrl
+      properties:
+        id:
+          type: string
+          example: p1a2b3
+        url:
+          type: string
+          example: https://www.amazon.in/dp/B01
+        canonicalUrl:
+          type: string
+          example: https://www.amazon.in/dp/B01
+        title:
+          type: string
+          example: Sony WH-1000XM5
+        currency:
+          type: string
+          default: INR
+          example: INR
+
+    SyncResponse:
+      type: object
+      required:
+        - ok
+        - serverTime
+        - tracking
+        - prices
+      properties:
+        ok:
+          type: boolean
+          example: true
+        serverTime:
+          type: integer
+          example: 1769000000000
+        tracking:
+          type: integer
+          example: 1
+        prices:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/PriceReading'
+
+    PriceReading:
+      type: object
+      required:
+        - ts
+        - price
+        - inStock
+        - source
+      properties:
+        ts:
+          type: integer
+          example: 1768950000000
+        price:
+          type: number
+          example: 4499
+        inStock:
+          type: boolean
+          example: true
+        source:
+          type: string
+          example: server
+
+    RecoveryGenerateResponse:
+      type: object
+      required:
+        - ok
+        - code
+        - expiresAt
+      properties:
+        ok:
+          type: boolean
+          example: true
+        code:
+          type: string
+          example: X7K9B2
+        expiresAt:
+          type: integer
+          example: 1776777600000
+
+    ErrorResponse:
+      type: object
+      required:
+        - ok
+        - error
+        - code
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Request body must be a JSON object
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        details:
+          type: object
+
+  responses:
+    400BadRequest:
+      description: Bad request or validation failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    401Unauthorized:
+      description: Missing or malformed device UUID token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    429TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: string
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    500InternalError:
+      description: Unhandled internal worker error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

@@ -30,8 +30,16 @@ device's key and read its watchlist.
 ### `GET /health`
 
 ```json
-{ "ok": true, "service": "ocular-sync", "time": 1769000000000 }
+{
+  "ok": true,
+  "service": "ocular-sync",
+  "status": "healthy",
+  "db": "connected",
+  "time": 1769000000000
+}
 ```
+
+Returns `HTTP 503 Service Unavailable` with `status: "degraded"` and `db: "disconnected"` if D1 connectivity fails.
 
 ### `POST /sync`
 
@@ -65,11 +73,47 @@ device's key and read its watchlist.
 }
 ```
 
-| Status | Meaning |
-|---|---|
-| 400 | Body was not JSON |
-| 401 | Missing or malformed device token |
-| 404 | Unknown route, or `/sync` called with the wrong method |
+| Status | Code | Meaning |
+|---|---|---|
+| 400 | `INVALID_BODY` / `VALIDATION_ERROR` | Body is not valid JSON object or fails payload constraints |
+| 401 | `UNAUTHORIZED` | Missing or malformed device token |
+| 404 | `NOT_FOUND` | Unknown route, or `/sync` called with non-POST method |
+| 429 | `TOO_MANY_REQUESTS` | Exceeded 60 requests / minute rate limit (includes `Retry-After`) |
+| 500 | `INTERNAL_SERVER_ERROR` | Uncaught server exception |
+
+### `POST /recovery/generate`
+
+Generates an anonymous 6-character recovery code for device watchlist recovery.
+
+```jsonc
+// Response 200
+{
+  "ok": true,
+  "code": "X7K9B2",
+  "expiresAt": 1776777600000
+}
+```
+
+Rate limit: 5 requests per 10 minutes.
+
+### `POST /recovery/claim`
+
+Claims a 6-character recovery code and transfers the associated watchlist to the caller's device UUID.
+
+```jsonc
+// Request
+{
+  "code": "X7K9B2"
+}
+
+// Response 200
+{
+  "ok": true,
+  "message": "Watchlist transferred successfully"
+}
+```
+
+Rate limit: 5 requests per 10 minutes (prevents brute-force guessing).
 
 ### Semantics that are easy to get wrong
 
