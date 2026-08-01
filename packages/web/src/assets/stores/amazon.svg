@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 140" fill="none">
+  <!-- Amazon Wordmark Text (Pure Black) -->
+  <text x="15" y="85" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif" font-weight="900" font-size="76" fill="#000000" letter-spacing="-3">amazon</text>
+  <!-- Official Orange Smile Arrow -->
+  <path d="M 35,96 C 110,126 215,126 285,86 C 291,82 299,89 294,95 C 220,138 110,138 30,106 C 24,103 29,93 35,96 Z" fill="#FF9900" />
+  <path d="M 280,81 C 292,88 306,95 315,93 C 312,83 302,71 292,63 C 288,68 283,75 280,81 Z" fill="#FF9900" />
+</svg>
