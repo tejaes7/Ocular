@@ -19,7 +19,14 @@ export default function ScrollPriceGraph() {
     const path = pathRef.current;
     if (!path) return;
 
-    const totalLength = path.getTotalLength();
+    let totalLength = 0;
+    try {
+      totalLength = path.getTotalLength();
+    } catch (e) {
+      return;
+    }
+    if (!totalLength || isNaN(totalLength)) return;
+
     path.style.strokeDasharray = `${totalLength}`;
     path.style.strokeDashoffset = `${totalLength}`;
 
@@ -29,12 +36,12 @@ export default function ScrollPriceGraph() {
 
     const calculateTarget = () => {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const vh = window.innerHeight || document.documentElement.clientHeight || 1;
 
       const scrollHeight = Math.max(
-        document.documentElement.scrollHeight,
-        document.body.scrollHeight,
-        document.documentElement.offsetHeight
+        document.documentElement.scrollHeight || 0,
+        document.body.scrollHeight || 0,
+        document.documentElement.offsetHeight || 0
       );
 
       const maxScrollable = Math.max(scrollHeight - vh, 1);
@@ -59,18 +66,20 @@ export default function ScrollPriceGraph() {
       }
 
       if (arrowGroupRef.current) {
-        if (currentLength < 15) {
+        if (currentLength < 15 || isNaN(currentLength)) {
           arrowGroupRef.current.style.opacity = '0';
         } else {
           arrowGroupRef.current.style.opacity = '1';
-          const pt = path.getPointAtLength(currentLength);
-          const ptAhead = path.getPointAtLength(Math.min(currentLength + 6, totalLength));
-          const angle = Math.atan2(ptAhead.y - pt.y, ptAhead.x - pt.x) * (180 / Math.PI);
+          try {
+            const pt = path.getPointAtLength(currentLength);
+            const ptAhead = path.getPointAtLength(Math.min(currentLength + 6, totalLength));
+            const angle = Math.atan2(ptAhead.y - pt.y, ptAhead.x - pt.x) * (180 / Math.PI);
 
-          arrowGroupRef.current.setAttribute(
-            'transform',
-            `translate(${pt.x}, ${pt.y}) rotate(${angle})`
-          );
+            arrowGroupRef.current.setAttribute(
+              'transform',
+              `translate(${pt.x}, ${pt.y}) rotate(${angle})`
+            );
+          } catch (e) {}
         }
       }
 
