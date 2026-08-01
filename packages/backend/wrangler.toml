@@ -7,6 +7,10 @@ compatibility_date = "2026-01-15"
 binding = "DB"
 database_name = "ocular"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+# Wrangler tracks what it has already run, so `npm run db:migrate` applies only
+# the pending files. Adding a migration means dropping it in this directory —
+# there is no per-file script to remember to update.
+migrations_dir = "migrations"
 
 [triggers]
 # Every 30 minutes. The worker itself only rechecks a product once
@@ -15,6 +19,11 @@ crons = ["*/30 * * * *"]
 
 [vars]
 CHECK_INTERVAL_MINUTES = "180"
+
+# Firebase project that /me accepts ID tokens from. Not a secret — this id ships
+# in every frontend bundle — but it must be set explicitly: verifyFirebase.js
+# refuses to verify without it rather than falling back to a baked-in default.
+FIREBASE_PROJECT_ID = "ocularx-59561"
 
 [observability]
 enabled = true
