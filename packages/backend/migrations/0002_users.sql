@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    firebase_uid TEXT NOT NULL UNIQUE,
+
+    email TEXT NOT NULL UNIQUE,
+
+    display_name TEXT,
+
+    photo_url TEXT,
+
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);

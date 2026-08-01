@@ -26,6 +26,7 @@
 import { runCron } from './checker/cron.js';
 import { json, preflight } from './lib/http.js';
 import { handleSync } from './routes/sync.js';
+import {  getCurrentUser } from "./routes/auth.js";
 
 export default {
   async fetch(request, env) {
@@ -40,9 +41,14 @@ export default {
     if (url.pathname === '/sync' && request.method === 'POST') {
       return handleSync(request, env);
     }
+    if(url.pathname === "/me" && request.method === "GET") {
+      return getCurrentUser(request,env);
+    }
 
     return json({ ok: false, error: 'Not found' }, 404);
+
   },
+  
 
   async scheduled(_event, env, ctx) {
     // waitUntil, so the cron isn't killed the moment scheduled() returns.
