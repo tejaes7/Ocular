@@ -9,6 +9,7 @@ import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
 import NotificationToast from './components/NotificationToast';
 import ScrollPriceGraph from './components/ScrollPriceGraph';
+import VideoBackground from './components/VideoBackground';
 
 export default function App() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
@@ -34,6 +35,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen theme-bg-main theme-text-main relative">
+      {/* Looping particle-wave video, behind everything. Renders nothing until
+          public/background.mp4 exists. */}
+      <VideoBackground />
+
       {/* Scroll-following Guidance Curve Beam */}
       <ScrollPriceGraph />
 
