@@ -19,8 +19,14 @@
  *     - Blocked hosts back off exponentially rather than hammering.
  *     - Smaller retailers with clean JSON-LD are where this earns its keep.
  *
- * No accounts. A device is a locally generated UUID; nothing here identifies a
- * person. See docs/API.md for the contract.
+ * Two identities, and they are never joined. `/sync` authenticates with a
+ * locally generated device UUID and is the only route that touches price data.
+ * `/me` authenticates with a Firebase token and is the only route that knows a
+ * person's name — accounts are optional and exist so one person's own browsers
+ * can share a watchlist.
+ *
+ * The invariant, spelled out in docs/API.md: no row that carries a price may
+ * carry a user id. Adding one is a team decision, not a migration.
  */
 
 import { runCron } from './checker/cron.js';

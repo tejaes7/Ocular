@@ -4,67 +4,200 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ocular — Privacy</title>
-    <link rel="stylesheet" href="styles.css" />
+
+    <!--
+      REQUIRED before Chrome Web Store submission — the listing is rejected
+      without a reachable privacy policy URL. This file is served straight out of
+      public/, so it stays reachable whether or not the React app builds.
+
+      Styles are inlined on purpose. This page previously linked public/styles.css
+      and that file was deleted when the site moved to Vite + Tailwind, which left
+      the policy rendering unstyled with nothing reporting it. A legal page should
+      not have a build dependency it can lose silently.
+
+      Every claim below is checked against the code. If sync or accounts ever
+      collect more than what is listed here, this page changes first, in the same
+      PR. Reviewers: @sumithraj207 @tejaes7.
+    -->
+
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --line: rgba(15, 17, 20, 0.1);
+        --ink: #0f1114;
+        --ink-2: #5b6069;
+        --ink-3: #8d939c;
+        --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0c0e11;
+          --line: rgba(255, 255, 255, 0.11);
+          --ink: #f2f4f7;
+          --ink-2: #9aa1ab;
+          --ink-3: #6c737d;
+        }
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: var(--font);
+        font-size: 16px;
+        line-height: 1.6;
+        color: var(--ink);
+        background: var(--bg);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a { color: inherit; }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--line);
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        text-decoration: none;
+      }
+
+      main {
+        max-width: 66ch;
+        margin: 0 auto;
+        padding: 48px 24px 72px;
+      }
+
+      h1 {
+        font-size: 34px;
+        letter-spacing: -0.02em;
+        margin: 0 0 8px;
+      }
+
+      h2 {
+        font-size: 17px;
+        letter-spacing: -0.01em;
+        margin: 36px 0 8px;
+      }
+
+      p { color: var(--ink-2); margin: 0 0 12px; }
+
+      .updated { color: var(--ink-3); font-size: 13px; margin-bottom: 32px; }
+
+      .lede { color: var(--ink); font-size: 18px; }
+
+      ul { color: var(--ink-2); padding-left: 20px; margin: 0 0 12px; }
+      li { margin-bottom: 6px; }
+
+      .foot {
+        border-top: 1px solid var(--line);
+        padding: 20px 24px;
+        display: flex;
+        justify-content: space-between;
+        color: var(--ink-3);
+        font-size: 14px;
+      }
+    </style>
   </head>
   <body>
-    <header class="nav">
-      <a class="wordmark" href="/">
-        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true">
-          <circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.6" />
-          <circle cx="8" cy="8" r="2.4" fill="currentColor" />
-        </svg>
-        Ocular
-      </a>
-    </header>
+    <a class="nav" href="/">
+      <svg viewBox="0 0 16 16" width="15" height="15" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.6" />
+        <circle cx="8" cy="8" r="2.4" fill="currentColor" />
+      </svg>
+      Ocular
+    </a>
 
-    <main class="install">
-      <h1 style="font-size: 34px; max-width: none">Privacy</h1>
+    <main>
+      <h1>Privacy</h1>
+      <p class="updated">Last updated 1 August 2026</p>
 
-      <!--
-        REQUIRED before Chrome Web Store submission — the listing is rejected
-        without a reachable privacy policy URL.
-
-        TODO(sumith + sathwik): verify every claim below against the code before
-        publishing, and add a "last updated" date. If sync ever collects more
-        than what is listed here, this page changes first.
-      -->
-
-      <p style="max-width: 60ch; color: var(--ink-2)">
-        Ocular does not have accounts, does not use analytics, and does not build a
-        profile of you.
+      <p class="lede">
+        Ocular does not use analytics and does not build a profile of you. The
+        prices you track are stored on your device. An account is optional, and
+        the things you track are never linked to it.
       </p>
 
       <h2>What stays on your device</h2>
-      <p style="max-width: 60ch; color: var(--ink-2)">
-        The products you watch and their full price history are stored locally, in your
-        browser's extension storage. They are not transmitted anywhere. Removing the
-        extension deletes them — export a backup first if you want to keep them.
+      <p>
+        The products you watch and their full price history are stored locally, in
+        your browser's extension storage. They are not transmitted anywhere unless
+        you turn on background sync, below. Removing the extension deletes them —
+        export a backup first if you want to keep them.
       </p>
 
       <h2>What Ocular requests over the network</h2>
-      <p style="max-width: 60ch; color: var(--ink-2)">
-        To read a price, Ocular requests the product pages you have asked it to watch,
-        from your own browser, using your existing session. It does not send those pages
-        anywhere else.
+      <p>
+        To read a price, Ocular requests the product pages you have asked it to
+        watch, from your own browser, using your existing session. It does not
+        send those pages anywhere else.
       </p>
 
       <h2>Optional background sync</h2>
-      <p style="max-width: 60ch; color: var(--ink-2)">
-        Background sync is <strong>off by default</strong>. If you turn it on and supply
-        your own server address, Ocular sends that server the URLs and titles of the
-        products you watch, plus a randomly generated device identifier. That identifier
-        is not linked to an email address, an account, or anything that identifies you.
-        No prices, settings, or browsing history beyond those product URLs are sent.
+      <p>
+        Background sync is <strong>off by default</strong>. If you turn it on and
+        supply your own server address, Ocular sends that server the URLs and
+        titles of the products you watch, plus a randomly generated device
+        identifier. No prices, settings, or browsing history beyond those product
+        URLs are sent.
+      </p>
+      <p>
+        That device identifier is generated in your browser and is not derived
+        from anything about you or your machine. It is not linked to your name or
+        your email address — including when you have an account.
       </p>
 
+      <h2>Optional account</h2>
+      <p>
+        Ocular works fully signed out, and nothing requires an account. If you
+        choose to sign in with Google, Google handles the sign-in and tells us
+        four things, which we store: a Google account identifier, your email
+        address, your display name, and your profile picture URL. We never see
+        your password.
+      </p>
+      <p>
+        An account exists for exactly one purpose: so a watchlist can follow you
+        between your own browsers. It does not unlock features and it does not
+        change what is stored about a product.
+      </p>
+      <p>
+        <strong>Your account is never attached to price data.</strong> No record
+        of a price, a product, or anything you track carries your account
+        identifier. The two are kept apart deliberately, and separating them is a
+        rule the code enforces rather than a promise about intent — see
+        <a href="https://github.com/tejaes7/Ocular/blob/main/docs/API.md">the API
+        contract</a>, which is public.
+      </p>
+
+      <h2>What we do not do</h2>
+      <ul>
+        <li>No analytics, no tracking pixels, no advertising identifiers.</li>
+        <li>We do not sell, rent, or share your data with anyone.</li>
+        <li>We do not read pages on sites outside the retailers Ocular supports.</li>
+        <li>We do not collect payment details. Ocular is free and has no checkout.</li>
+      </ul>
+
       <h2>Permissions</h2>
-      <p style="max-width: 60ch; color: var(--ink-2)">
-        Ocular requests access only to the retail sites it supports, so it can read
-        prices on product pages you open. It does not read pages on any other site.
+      <p>
+        Ocular requests access only to the retail sites it supports, so it can
+        read prices on product pages you open. It does not read pages on any other
+        site.
+      </p>
+
+      <h2>Deleting your data</h2>
+      <p>
+        Removing the extension deletes everything stored on your device. To delete
+        an account and the four fields listed above,
+        <a href="https://github.com/tejaes7/Ocular/issues">open an issue</a> and we
+        will remove it.
       </p>
 
       <h2>Contact</h2>
-      <p style="max-width: 60ch; color: var(--ink-2)">
+      <p>
         Questions or corrections:
         <a href="https://github.com/tejaes7/Ocular/issues">open an issue on GitHub</a>.
       </p>

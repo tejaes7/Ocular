@@ -53,8 +53,12 @@ Comfortably inside the free tier for personal use.
 
 ## API
 
-Auth is a `Bearer` token that is just the extension's locally generated UUID.
-There are no accounts, no email, and nothing that identifies a person.
+Auth on `/sync` is a `Bearer` token that is just the extension's locally
+generated UUID — no email, and nothing that identifies a person.
+
+Accounts are optional and separate. `/me` takes a Firebase ID token and is the
+only route that knows who you are; `/sync` never consults it. **No row that
+carries a price may carry a user id** — see `docs/API.md`.
 
 ### `GET /health`
 ```json
