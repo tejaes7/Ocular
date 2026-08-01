@@ -25,10 +25,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /**
  * Extract the caller's device id.
  *
- * There are no accounts. The token *is* the identity: a UUID the extension
- * generated locally. The strict UUID shape is the security boundary — it stops
- * anything guessable, injected, or attacker-chosen from being used as a key.
- * Never loosen this to "any non-empty string".
+ * On this path the token *is* the identity: a UUID the extension generated
+ * locally. The strict UUID shape is the security boundary — it stops anything
+ * guessable, injected, or attacker-chosen from being used as a key. Never
+ * loosen this to "any non-empty string".
+ *
+ * Accounts exist (`GET /me`) but are irrelevant here, and must stay that way:
+ * price rows are keyed to the device UUID and never to a user. Resolving an
+ * account inside this function is the change docs/API.md forbids.
  */
 export function deviceIdFrom(request) {
   const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();

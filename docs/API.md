@@ -6,6 +6,35 @@ change, and link the PR on the other side.
 
 ---
 
+## Identity: two of them, never joined
+
+Ocular carries two separate identities. Which one a request uses is decided by
+the route, and **nothing may correlate them**.
+
+| | Device UUID | Account (optional) |
+|---|---|---|
+| What it is | A v4 UUID the extension generates locally on first run | A Firebase uid, from signing in with Google |
+| Used by | `POST /sync` | `GET /me` |
+| Purpose | Carries one browser's watchlist so the worker knows what to check | Lets one person's own devices share a watchlist |
+| Required? | Yes, for sync | **No.** Everything works signed out |
+| Identifies a person? | No | Yes — it has an email address |
+
+**The invariant: no row that carries a price may carry a user id.** Price data is
+keyed to the anonymous device UUID and to nothing else. An account may point at
+its devices; a device may never point back at a price row through an account.
+
+This is not a stylistic preference. The training dataset described in
+`packages/ai/WORKLOG.md` is only defensible because the price series in it cannot
+be attributed to a person. Adding `user_id` to a price table is the single change
+that would break that, and it needs a decision from the whole team rather than a
+migration — see the header of `packages/backend/migrations/0002_users.sql`.
+
+Signing in buys exactly one thing today: your watchlist follows you between your
+own browsers. It does not unlock features, it is not required, and it does not
+change what is stored about a product.
+
+---
+
 ## 1. Sync API — extension ↔ backend
 
 Implemented by `packages/backend`. Called by
@@ -20,7 +49,8 @@ Authorization: Bearer <device-uuid>
 ```
 
 The token *is* the identity — a UUID the extension generates locally on first
-use. There are no accounts, no email, no password.
+use. No email and no password are involved, and this route never consults an
+account even when one exists.
 
 It must match `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`
 case-insensitively. **Do not loosen this.** The strict shape is the security
@@ -82,6 +112,54 @@ device's key and read its watchlist.
   and they never overwrite a browser observation.
 - **Idempotent.** Calling repeatedly is safe; the worst case is redundant writes.
 - Cap: 200 products per device, 5000 price rows per response.
+
+### `GET /me`
+
+Resolves a Firebase ID token to an account, creating it on first sign-in. This is
+the **only** route that uses the account identity — see the identity table above.
+
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+The scheme is required: a bare token, or `Bearer` with nothing after it, is a
+401. Verification is against Google's public JWKS, checking signature, `exp`,
+`iss`, `aud` and a non-empty `sub`. The worker refuses to verify at all unless
+`FIREBASE_PROJECT_ID` is set — there is deliberately no default.
+
+```jsonc
+// Response 200
+{
+  "ok": true,
+  "user": {
+    "uid": "firebase-uid-abc123",       // the only identity key
+    "email": "shopper@example.com",     // may be null
+    "displayName": "A Shopper",         // may be null
+    "photoURL": "https://..."           // may be null
+  }
+}
+```
+
+| Status | Meaning |
+|---|---|
+| 401 | No `Authorization` header, wrong scheme, or the token failed verification |
+| 404 | `/me` called with a method other than GET |
+| 500 | The account could not be persisted |
+
+Things that are load-bearing here:
+
+- **`uid` is the only identity key.** `email` is nullable *and* non-unique, both
+  on purpose. Phone and anonymous sign-in produce a valid token with no email
+  claim; and one person signing in with Google and later with a password gets two
+  uids on one address. Keying on the address turns either case into a permanent
+  lockout.
+- **First sign-in and every later one take the same path** — an upsert, not
+  check-then-insert. Two concurrent first sign-ins would otherwise race and one
+  would fail on the unique uid.
+- **Never returns `{ ok: true }` with a null user.** A write that did not produce
+  a row is a 500. Clients may rely on `user.uid` existing whenever `ok` is true.
+- **This route touches no price data**, and adding a field here that links it to
+  any is the change the identity section forbids.
 
 ---
 

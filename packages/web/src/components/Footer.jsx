@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Logo from './Logo';
-import { Shield, FileText, HelpCircle, Mail, CheckCircle2, X, Code2 } from 'lucide-react';
+import { FileText, HelpCircle, Mail, CheckCircle2, X, Code2 } from 'lucide-react';
 
 export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -57,9 +57,15 @@ export default function Footer() {
                 </button>
               </li>
               <li>
-                <button onClick={() => setActiveModal('privacy')} className="hover:text-white underline-offset-2 hover:underline transition-colors cursor-pointer">
+                {/*
+                  A real link, not a modal. The Chrome Web Store listing is
+                  rejected without a reachable privacy policy *URL*, and a modal
+                  has no URL to give it. public/privacy.html is the canonical
+                  text; keeping a second copy in a modal is how the two drift.
+                */}
+                <a href="/privacy.html" className="hover:text-white underline-offset-2 hover:underline transition-colors cursor-pointer">
                   Privacy Policy
-                </button>
+                </a>
               </li>
               <li>
                 <button onClick={() => setActiveModal('terms')} className="hover:text-white underline-offset-2 hover:underline transition-colors cursor-pointer">
@@ -124,18 +130,6 @@ export default function Footer() {
             >
               <X size={18} />
             </button>
-
-            {activeModal === 'privacy' && (
-              <>
-                <h3 className="text-lg font-bold theme-text-main flex items-center gap-2">
-                  <Shield size={20} className="theme-accent-text" /> Privacy Policy
-                </h3>
-                <div className="text-xs theme-text-muted space-y-2 max-h-60 overflow-y-auto pr-2">
-                  <p>At Ocular, your privacy is our priority. We do not sell, rent, or trade your personal data.</p>
-                  <p><strong>Data Collection:</strong> We only track product URLs and price history you bookmark. We do not store personal browsing history or payment details.</p>
-                </div>
-              </>
-            )}
 
             {activeModal === 'terms' && (
               <>

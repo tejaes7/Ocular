@@ -88,7 +88,10 @@ a datacenter IP. It earns its place on smaller retailers with clean JSON-LD.
 fill gaps, via `mergeHistory()`.
 
 - [x] `worker/` — wrangler config, D1 schema, cron every 30 min
-- [x] Anonymous device token (UUID) — no accounts, no email
+- [x] Anonymous device token (UUID) — no email, and it is the *only* identity
+      `/sync` accepts. Optional accounts arrived later via `GET /me` and are
+      deliberately kept apart from price data; see the identity table in
+      `docs/API.md`
 - [x] `POST /sync` (watchlist up, prices down), `GET /health`
 - [x] Server extraction via `src/lib/htmlscan.js` — JSON-LD + meta only, no DOM
 - [x] Per-host cron caps so one watchlist can't concentrate traffic

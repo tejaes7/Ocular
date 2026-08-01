@@ -33,16 +33,25 @@ In priority order:
 ## Required before Chrome Web Store submission
 
 The store **will not approve** the listing without a reachable privacy policy
-URL. `public/privacy.html` is stubbed — it needs to be accurate, and right now
-the accurate version is short and good news:
+URL. `public/privacy.html` is that URL. It is a static file in `public/` so it
+stays reachable regardless of the React build, and its styles are inlined —
+it previously linked a `styles.css` that was deleted in the Vite migration, and
+nothing reported the page rendering unstyled.
 
-- No accounts, no analytics, no tracking.
+What it currently claims, all of which is checked against the code:
+
+- No analytics, no tracking, nothing sold or shared.
 - Price history is stored locally in the user's browser.
 - Optional sync is off by default; when enabled it sends product URLs and an
   anonymous device UUID to a self-hosted worker.
+- Accounts are optional, and **never linked to price data**.
 
-Check this against what the code actually does before publishing. If sync ever
-starts collecting more, this page changes first.
+**Do not add a second copy of this text in a component.** A footer modal used to
+carry its own two-sentence version, which said different things and could not
+serve as the store's policy URL. The footer links to the page.
+
+Check this against what the code actually does before publishing. If sync or
+accounts ever start collecting more, this page changes first, in the same PR.
 
 ## Design system
 
