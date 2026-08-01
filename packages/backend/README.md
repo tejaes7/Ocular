@@ -23,19 +23,27 @@ extension's hidden-tab checking.
 ## Deploy
 
 ```bash
-cd worker
+cd packages/backend
 npm install -g wrangler        # if you don't have it
 wrangler login
 
 # 1. Create the database, then paste the printed database_id into wrangler.toml
 wrangler d1 create ocular
 
-# 2. Apply the schema
-wrangler d1 execute ocular --file=./schema.sql --remote
+# 2. Apply every pending migration
+npm run db:migrate
 
 # 3. Ship it
 wrangler deploy
 ```
+
+Step 2 runs `wrangler d1 migrations apply`, which walks `migrations/` and applies
+whatever this database has not seen yet. **Adding a migration means adding a file
+there and nothing else** — do not go back to naming one file per command. The
+previous version of this runbook pointed at a `schema.sql` that does not exist,
+and the `db:init` script it replaced named `0001_init.sql` explicitly, so
+`0002_users.sql` was never applied anywhere and `/me` would have failed on a
+missing `users` table the first time anyone called it.
 
 Then in the extension's options page, enable **Background sync** and paste the
 worker URL (`https://ocular.<your-subdomain>.workers.dev`).

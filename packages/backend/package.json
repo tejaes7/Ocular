@@ -9,8 +9,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "db:init": "wrangler d1 execute ocular --file=./migrations/0001_init.sql --remote",
-    "db:local": "wrangler d1 execute ocular --file=./migrations/0001_init.sql --local",
+    "db:migrate": "wrangler d1 migrations apply ocular --remote",
+    "db:migrate:local": "wrangler d1 migrations apply ocular --local",
     "test": "node --test"
   },
 
