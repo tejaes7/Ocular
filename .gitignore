@@ -41,3 +41,6 @@ packages/ai/models/
 Thumbs.db
 .vscode/
 .idea/
+dist/
+packages/*/dist/
+
