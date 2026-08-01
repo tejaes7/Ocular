@@ -51,6 +51,35 @@
   }
 }
 
+/* Custom pointer, built from the supplied artwork.
+   The source arrow is pure white, which would be invisible against this site's
+   white background, so it carries a thin #14283f rim. The two numbers are the
+   hotspot — the pixel that actually clicks — placed on the arrow tip. */
+:root {
+  --cursor-arrow: url('/cursor.png') 0 0;
+}
+
+body {
+  cursor: var(--cursor-arrow), auto;
+}
+
+/* Links and buttons would otherwise revert to the system hand, since the UA
+   stylesheet and Tailwind's `cursor-pointer` both set cursor explicitly. */
+a,
+button,
+summary,
+[role='button'],
+.cursor-pointer {
+  cursor: var(--cursor-arrow), pointer;
+}
+
+/* Text fields keep the I-beam: it's the only cue that you can place a caret. */
+input,
+textarea,
+[contenteditable] {
+  cursor: text;
+}
+
 .theme-bg-main { background-color: var(--bg-main); }
 .theme-bg-card { background-color: var(--bg-card); }
 .theme-bg-surface { background-color: var(--bg-surface); }

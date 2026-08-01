@@ -2,27 +2,31 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, ShieldCheck } from 'lucide-react';
 import Logo from './Logo';
+import { useAuth } from '../auth/AuthContext.jsx';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
   const [mode, setMode] = useState(initialMode); // 'login' or 'register'
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
+  const { user, profile, pending: isAuthenticating, error, signIn, signOut } = useAuth();
 
-  const handleGoogleSignIn = () => {
-    setIsAuthenticating(true);
-    setTimeout(() => {
-      setIsAuthenticating(false);
-      setUserProfile({
-        name: 'Sumith Raj',
-        email: 'sumithraj@gmail.com',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
-      });
-    }, 1200);
+  // Prefer whatever the backend knows about the account, fall back to the
+  // Google profile so the panel still renders if /me is unreachable.
+  const userProfile = user
+    ? {
+        name: profile?.name || user.displayName || 'Ocular user',
+        email: profile?.email || user.email || '',
+        avatar: profile?.avatar || user.photoURL || '',
+      }
+    : null;
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn();
+    } catch {
+      // Surfaced through `error` from the context.
+    }
   };
 
-  const handleSignOut = () => {
-    setUserProfile(null);
-  };
+  const handleSignOut = () => signOut();
 
   if (!isOpen) return null;
 
@@ -89,11 +93,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
           {userProfile ? (
             <div className="space-y-5 text-center py-2">
               <div className="p-4 rounded-2xl theme-bg-surface theme-border border flex items-center gap-4">
-                <img
-                  src={userProfile.avatar}
-                  alt={userProfile.name}
-                  className="w-12 h-12 rounded-full object-cover border-2 theme-border shadow-md"
-                />
+                {userProfile.avatar ? (
+                  <img
+                    src={userProfile.avatar}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-12 h-12 rounded-full object-cover border-2 theme-border shadow-md"
+                  />
+                ) : (
+                  // Google accounts without a photo would otherwise render a
+                  // broken <img> with an empty src.
+                  <div className="w-12 h-12 rounded-full theme-accent-bg flex items-center justify-center font-bold text-sm shadow-md shrink-0">
+                    {(userProfile.name || '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="text-left">
                   <h4 className="text-sm font-bold theme-text-main">{userProfile.name}</h4>
                   <p className="text-xs theme-text-muted font-mono">{userProfile.email}</p>
@@ -146,6 +159,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                   </>
                 )}
               </button>
+
+              {error && (
+                <p
+                  role="alert"
+                  className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-center"
+                >
+                  {error.code === 'NETWORK_ERROR'
+                    ? "Couldn't reach the Ocular backend. Check your connection and try again."
+                    : error.message}
+                </p>
+              )}
 
               <div className="flex items-center gap-2 text-[10px] theme-text-subtle justify-center pt-2">
                 <ShieldCheck size={13} className="theme-accent-text" />
