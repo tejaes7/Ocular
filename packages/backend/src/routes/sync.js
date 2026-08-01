@@ -8,7 +8,9 @@
  * the worst case is a few redundant writes.
  */
 
-import { deviceIdFrom, json } from '../lib/http.js';
+import { deviceIdFrom, errorJson, json } from '../lib/http.js';
+import { logger } from '../lib/logger.js';
+import { validateSyncPayload } from '../lib/validation.js';
 import {
   deleteProducts,
   listProductIds,
@@ -17,24 +19,30 @@ import {
   upsertProductStatements,
 } from '../db/queries.js';
 
-const MAX_PRODUCTS_PER_DEVICE = 200;
 const MAX_PRICE_ROWS = 5000;
 
 export async function handleSync(request, env) {
   const deviceId = deviceIdFrom(request);
-  if (!deviceId) return json({ ok: false, error: 'Missing or malformed device token' }, 401);
+  if (!deviceId) {
+    logger.warn('Sync rejected due to missing or invalid device token');
+    return errorJson('Missing or malformed device token', 401, 'UNAUTHORIZED');
+  }
 
   let body;
   try {
     body = await request.json();
   } catch {
-    return json({ ok: false, error: 'Body must be JSON' }, 400);
+    logger.warn('Sync rejected due to invalid JSON payload');
+    return errorJson('Body must be JSON', 400, 'INVALID_BODY');
   }
 
-  const incoming = Array.isArray(body.products)
-    ? body.products.slice(0, MAX_PRODUCTS_PER_DEVICE)
-    : [];
-  const since = Number.isFinite(body.since) ? body.since : 0;
+  const validation = validateSyncPayload(body);
+  if (!validation.valid) {
+    logger.warn('Sync payload validation failed', { error: validation.error });
+    return errorJson(validation.error, 400, 'VALIDATION_ERROR');
+  }
+
+  const { since, products: incoming } = validation.data;
   const now = Date.now();
 
   await touchDevice(env, deviceId, now);

@@ -8,6 +8,16 @@
  * independently without merge conflicts.
  */
 
+export async function checkDbHealth(env) {
+  if (!env?.DB) return false;
+  try {
+    const result = await env.DB.prepare('SELECT 1 as alive').first();
+    return result?.alive === 1;
+  } catch {
+    return false;
+  }
+}
+
 export async function touchDevice(env, deviceId, now) {
   return env.DB.prepare(
     `INSERT INTO devices (id, created_at, last_seen_at) VALUES (?, ?, ?)
@@ -111,4 +121,39 @@ export async function recordFailure(env, product, { now, failures, blockedUntil,
   )
     .bind(failures, blockedUntil, now, reason, product.device_id, product.id)
     .run();
+}
+
+export async function createRecoveryCode(env, { code, deviceId, now, expiresAt }) {
+  return env.DB.prepare(
+    `INSERT INTO recovery_codes (code, device_id, created_at, expires_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(code) DO UPDATE SET device_id = excluded.device_id, expires_at = excluded.expires_at`
+  )
+    .bind(code, deviceId, now, expiresAt)
+    .run();
+}
+
+export async function getRecoveryCode(env, code) {
+  const result = await env.DB.prepare('SELECT code, device_id, expires_at FROM recovery_codes WHERE code = ?')
+    .bind(code)
+    .first();
+  return result || null;
+}
+
+export async function deleteRecoveryCode(env, code) {
+  return env.DB.prepare('DELETE FROM recovery_codes WHERE code = ?').bind(code).run();
+}
+
+export async function transferDeviceData(env, { oldDeviceId, newDeviceId }) {
+  return env.DB.batch([
+    env.DB.prepare('UPDATE OR IGNORE products SET device_id = ? WHERE device_id = ?').bind(
+      newDeviceId,
+      oldDeviceId
+    ),
+    env.DB.prepare('UPDATE OR IGNORE prices SET device_id = ? WHERE device_id = ?').bind(
+      newDeviceId,
+      oldDeviceId
+    ),
+    env.DB.prepare('DELETE FROM products WHERE device_id = ?').bind(oldDeviceId),
+    env.DB.prepare('DELETE FROM prices WHERE device_id = ?').bind(oldDeviceId),
+  ]);
 }

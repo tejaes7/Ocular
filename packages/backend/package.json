@@ -8,8 +8,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "db:init": "wrangler d1 execute ocular --file=./migrations/0001_init.sql --remote",
-    "db:local": "wrangler d1 execute ocular --file=./migrations/0001_init.sql --local",
+    "db:init": "wrangler d1 execute ocular --file=./migrations/0001_init.sql --remote && wrangler d1 execute ocular --file=./migrations/0002_recovery.sql --remote",
+    "db:local": "wrangler d1 execute ocular --file=./migrations/0001_init.sql --local && wrangler d1 execute ocular --file=./migrations/0002_recovery.sql --local",
     "test": "node --test"
   },
   "dependencies": {

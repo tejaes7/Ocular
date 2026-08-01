@@ -12,11 +12,38 @@ export const CORS = {
   'Access-Control-Max-Age': '86400',
 };
 
-export const json = (body, status = 200) =>
+export const json = (body, status = 200, customHeaders = {}) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS },
+    headers: { 'Content-Type': 'application/json', ...CORS, ...customHeaders },
   });
+
+/**
+ * Generates a standardized JSON error response.
+ *
+ * @param {string} message - Human-readable error message
+ * @param {number} status - HTTP status code (default 400)
+ * @param {string} code - Error code identifier (e.g. 'UNAUTHORIZED', 'BAD_REQUEST')
+ * @param {object} details - Optional extra error context
+ * @param {object} customHeaders - Optional additional response headers
+ */
+export const errorJson = (
+  message,
+  status = 400,
+  code = 'BAD_REQUEST',
+  details = undefined,
+  customHeaders = {}
+) =>
+  json(
+    {
+      ok: false,
+      error: message,
+      code,
+      ...(details ? { details } : {}),
+    },
+    status,
+    customHeaders
+  );
 
 export const preflight = () => new Response(null, { status: 204, headers: CORS });
 

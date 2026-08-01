@@ -32,11 +32,12 @@ function stubDb(results = []) {
       return {
         run: async () => ({ success: true }),
         all: async () => queue.shift() ?? { results: [] },
-        first: async () => null,
+        first: async () => (sql.includes('SELECT 1') ? { alive: 1 } : null),
       };
     },
     run: async () => ({ success: true }),
     all: async () => queue.shift() ?? { results: [] },
+    first: async () => (sql.includes('SELECT 1') ? { alive: 1 } : null),
   });
 
   return {
@@ -59,13 +60,34 @@ const authed = (body) => post(body, { Authorization: `Bearer ${VALID_TOKEN}` });
 
 // ---------------------------------------------------------------------------
 
-test('GET /health reports service liveness', async () => {
+test('GET /health reports service liveness and database connection', async () => {
   const response = await worker.fetch(new Request('https://ocular.test/health'), stubDb());
   assert.equal(response.status, 200);
 
   const body = await response.json();
   assert.equal(body.ok, true);
   assert.equal(body.service, 'ocular-sync');
+  assert.equal(body.status, 'healthy');
+  assert.equal(body.db, 'connected');
+});
+
+test('GET /health returns HTTP 503 degraded status when DB fails', async () => {
+  const brokenDb = {
+    DB: {
+      prepare: () => ({
+        first: async () => {
+          throw new Error('D1 connection lost');
+        },
+      }),
+    },
+  };
+  const response = await worker.fetch(new Request('https://ocular.test/health'), brokenDb);
+  assert.equal(response.status, 503);
+
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.status, 'degraded');
+  assert.equal(body.db, 'disconnected');
 });
 
 test('OPTIONS preflight is answered with CORS headers', async () => {
@@ -131,6 +153,49 @@ test('POST /sync tolerates a missing products array', async () => {
   assert.equal((await response.json()).tracking, 0);
 });
 
+test('POST /sync rejects non-object JSON bodies', async () => {
+  for (const invalidBody of ['"just a string"', '123', 'true', '["array"]']) {
+    const response = await worker.fetch(
+      post(invalidBody, { Authorization: `Bearer ${VALID_TOKEN}` }),
+      stubDb()
+    );
+    assert.equal(response.status, 400, `should reject body: ${invalidBody}`);
+    const resJson = await response.json();
+    assert.equal(resJson.ok, false);
+    assert.match(resJson.error, /JSON object/i);
+  }
+});
+
+test('POST /sync rejects invalid since timestamp', async () => {
+  for (const badSince of [-1, '123', Infinity, NaN]) {
+    const response = await worker.fetch(authed({ since: badSince }), stubDb());
+    assert.equal(response.status, 400);
+    const resJson = await response.json();
+    assert.equal(resJson.ok, false);
+    assert.match(resJson.error, /since/i);
+  }
+});
+
+test('POST /sync rejects non-array products property', async () => {
+  const response = await worker.fetch(authed({ products: 'not-an-array' }), stubDb());
+  assert.equal(response.status, 400);
+  const resJson = await response.json();
+  assert.equal(resJson.ok, false);
+  assert.match(resJson.error, /array/i);
+});
+
+test('POST /sync rejects products payload exceeding size limit', async () => {
+  const oversizedProducts = Array.from({ length: 201 }, (_, i) => ({
+    id: `p_${i}`,
+    canonicalUrl: `https://example.com/p/${i}`,
+  }));
+  const response = await worker.fetch(authed({ products: oversizedProducts }), stubDb());
+  assert.equal(response.status, 400);
+  const resJson = await response.json();
+  assert.equal(resJson.ok, false);
+  assert.match(resJson.error, /maximum allowed size/i);
+});
+
 test('POST /sync skips products with no canonical URL', async () => {
   const env = stubDb();
   const response = await worker.fetch(
@@ -173,4 +238,132 @@ test('every response carries CORS headers so the extension can read it', async (
   const response = await worker.fetch(authed({ products: [] }), stubDb());
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*');
   assert.match(response.headers.get('Content-Type'), /application\/json/);
+});
+
+// --- error handling & codes -----------------------------------------------
+
+test('error responses return structured error code identifiers', async () => {
+  const unauthRes = await worker.fetch(post({ products: [] }), stubDb());
+  const unauthJson = await unauthRes.json();
+  assert.equal(unauthJson.ok, false);
+  assert.equal(unauthJson.code, 'UNAUTHORIZED');
+
+  const notFoundRes = await worker.fetch(new Request('https://ocular.test/invalid'), stubDb());
+  const notFoundJson = await notFoundRes.json();
+  assert.equal(notFoundJson.ok, false);
+  assert.equal(notFoundJson.code, 'NOT_FOUND');
+});
+
+test('global error boundary catches uncaught exception and returns 500', async () => {
+  const throwingDb = {
+    DB: {
+      prepare() {
+        throw new Error('Database crash');
+      },
+    },
+  };
+
+  const response = await worker.fetch(authed({ products: [] }), throwingDb);
+  assert.equal(response.status, 500);
+
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'INTERNAL_SERVER_ERROR');
+  assert.equal(body.error, 'Internal server error');
+});
+
+// --- logger tests ---------------------------------------------------------
+
+test('logger formats JSON logs and redacts sensitive metadata', async () => {
+  const { formatLog } = await import('../src/lib/logger.js');
+  const rawLog = formatLog('INFO', 'Test log message', {
+    userIp: '127.0.0.1',
+    authorization: 'Bearer 12345-abcde',
+    secretKey: 'topsecret',
+  });
+
+  const parsed = JSON.parse(rawLog);
+  assert.equal(parsed.level, 'INFO');
+  assert.equal(parsed.msg, 'Test log message');
+  assert.equal(parsed.meta.userIp, '127.0.0.1');
+  assert.equal(parsed.meta.authorization, '[REDACTED]');
+  assert.equal(parsed.meta.secretKey, '[REDACTED]');
+});
+
+// --- recovery flow tests ---------------------------------------------------
+
+test('POST /recovery/generate produces a 6-character recovery code', async () => {
+  const req = new Request('https://ocular.test/recovery/generate', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${VALID_TOKEN}` },
+  });
+  const response = await worker.fetch(req, stubDb());
+  assert.equal(response.status, 200);
+
+  const body = await response.json();
+  assert.equal(body.ok, true);
+  assert.equal(typeof body.code, 'string');
+  assert.equal(body.code.length, 6);
+  assert.ok(body.expiresAt > Date.now());
+});
+
+test('POST /recovery/claim rejects invalid code length with 400', async () => {
+  const req = new Request('https://ocular.test/recovery/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${VALID_TOKEN}` },
+    body: JSON.stringify({ code: 'BAD' }),
+  });
+  const response = await worker.fetch(req, stubDb());
+  assert.equal(response.status, 400);
+
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'INVALID_CODE');
+});
+
+test('POST /recovery/claim rejects non-existent or expired code with 404', async () => {
+  const req = new Request('https://ocular.test/recovery/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${VALID_TOKEN}` },
+    body: JSON.stringify({ code: 'X9Y8Z7' }),
+  });
+
+  // Default stubDb returns null for recovery code lookup
+  const response = await worker.fetch(req, stubDb());
+  assert.equal(response.status, 404);
+
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'RECOVERY_CODE_NOT_FOUND');
+});
+
+// --- rate limiting tests --------------------------------------------------
+
+test('rate limiter rejects requests with 429 when limits are exceeded', async () => {
+  const { clearRateLimitStore } = await import('../src/lib/rateLimit.js');
+  clearRateLimitStore();
+
+  const RATE_TOKEN = '7f8c9e2a-5b7d-4e8f-9a1b-2c3d4e5f6a7b';
+  const makeReq = () =>
+    new Request('https://ocular.test/recovery/generate', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RATE_TOKEN}` },
+    });
+
+  // Allowed limit for /recovery/generate is 5 requests / 10 min
+  for (let i = 0; i < 5; i++) {
+    const res = await worker.fetch(makeReq(), stubDb());
+    assert.equal(res.status, 200);
+  }
+
+  // 6th request must trigger HTTP 429
+  const blockedRes = await worker.fetch(makeReq(), stubDb());
+  assert.equal(blockedRes.status, 429);
+  assert.ok(blockedRes.headers.has('Retry-After'));
+
+  const blockedJson = await blockedRes.json();
+  assert.equal(blockedJson.ok, false);
+  assert.equal(blockedJson.code, 'TOO_MANY_REQUESTS');
+
+  clearRateLimitStore();
 });
