@@ -8,7 +8,7 @@
  * the worst case is a few redundant writes.
  */
 
-import { deviceIdFrom, json } from '../lib/http.js';
+import { deviceIdFrom, fail, json } from '../lib/http.js';
 import {
   deleteProducts,
   listProductIds,
@@ -22,13 +22,13 @@ const MAX_PRICE_ROWS = 5000;
 
 export async function handleSync(request, env) {
   const deviceId = deviceIdFrom(request);
-  if (!deviceId) return json({ ok: false, error: 'Missing or malformed device token' }, 401);
+  if (!deviceId) return fail('UNAUTHORIZED', 'Missing or malformed device token', 401);
 
   let body;
   try {
     body = await request.json();
   } catch {
-    return json({ ok: false, error: 'Body must be JSON' }, 400);
+    return fail('BAD_REQUEST', 'Body must be JSON', 400);
   }
 
   const incoming = Array.isArray(body.products)

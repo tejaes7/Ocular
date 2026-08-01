@@ -30,9 +30,42 @@
  */
 
 import { runCron } from './checker/cron.js';
-import { json, preflight } from './lib/http.js';
+import { fail, json, preflight } from './lib/http.js';
 import { handleSync } from './routes/sync.js';
-import {  getCurrentUser } from "./routes/auth.js";
+import { getCurrentUser } from './routes/auth.js';
+
+/**
+ * Liveness, and it actually checks the thing that fails.
+ *
+ * A health check that only proves the worker is running answers a question
+ * nobody asked — Cloudflare already returns 5xx if the script is dead. What
+ * breaks in practice is the D1 binding: a wrong database_id or an unapplied
+ * migration leaves the worker up and every route 500ing. So this touches the
+ * database and reports 503 when it cannot, which is what makes it usable as an
+ * uptime probe rather than decoration.
+ */
+async function handleHealth(env) {
+  let db = 'connected';
+
+  try {
+    await env.DB.prepare('SELECT 1').first();
+  } catch {
+    db = 'unavailable';
+  }
+
+  const ok = db === 'connected';
+
+  return json(
+    {
+      ok,
+      service: 'ocular-sync',
+      status: ok ? 'healthy' : 'degraded',
+      db,
+      time: Date.now(),
+    },
+    ok ? 200 : 503
+  );
+}
 
 export default {
   async fetch(request, env) {
@@ -41,20 +74,21 @@ export default {
     if (request.method === 'OPTIONS') return preflight();
 
     if (url.pathname === '/health') {
-      return json({ ok: true, service: 'ocular-sync', time: Date.now() });
+      return handleHealth(env);
     }
 
     if (url.pathname === '/sync' && request.method === 'POST') {
       return handleSync(request, env);
     }
-    if(url.pathname === "/me" && request.method === "GET") {
-      return getCurrentUser(request,env);
+
+    if (url.pathname === '/me' && request.method === 'GET') {
+      return getCurrentUser(request, env);
     }
 
-    return json({ ok: false, error: 'Not found' }, 404);
-
+    return fail('NOT_FOUND', 'Not found', 404);
   },
-  
+
+
 
   async scheduled(_event, env, ctx) {
     // waitUntil, so the cron isn't killed the moment scheduled() returns.

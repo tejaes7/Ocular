@@ -9,6 +9,9 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  // True only for the sign-in that created the account. Reset on sign-out so a
+  // second person signing in on the same tab is not greeted as a returning one.
+  const [isNew, setIsNew] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   // Undefined until Firebase reports the restored session, so the UI can avoid
@@ -27,16 +30,20 @@ export function AuthProvider({ children }) {
 
         if (!nextUser) {
           setProfile(null);
+          setIsNew(false);
           profileLoadedFor.current = null;
           return;
         }
         if (profileLoadedFor.current === nextUser.uid) return;
 
         // Page reload with a restored session: the backend profile is not in
-        // memory, so fetch it from the token Firebase just handed back.
+        // memory, so fetch it from the token Firebase just handed back. This is
+        // never a first sign-in — the account already existed to be restored.
         try {
           const token = await nextUser.getIdToken();
-          setProfile(await getCurrentUser(token));
+          const { user: nextProfile } = await getCurrentUser(token);
+          setProfile(nextProfile);
+          setIsNew(false);
           profileLoadedFor.current = nextUser.uid;
         } catch (err) {
           // Signed in with Firebase but the backend rejected or is unreachable.
@@ -51,9 +58,10 @@ export function AuthProvider({ children }) {
     setError(null);
     setPending(true);
     try {
-      const { user: nextUser, profile: nextProfile } = await login();
+      const { user: nextUser, profile: nextProfile, isNew: created } = await login();
       profileLoadedFor.current = nextUser.uid;
       setProfile(nextProfile);
+      setIsNew(created);
       return nextProfile;
     } catch (err) {
       // Closing the Google popup is a normal action, not an error worth showing.
@@ -70,12 +78,13 @@ export function AuthProvider({ children }) {
     setError(null);
     await logout();
     setProfile(null);
+    setIsNew(false);
     profileLoadedFor.current = null;
   }, []);
 
   const value = useMemo(
-    () => ({ user, profile, pending, error, ready, signIn, signOut }),
-    [user, profile, pending, error, ready, signIn, signOut]
+    () => ({ user, profile, isNew, pending, error, ready, signIn, signOut }),
+    [user, profile, isNew, pending, error, ready, signIn, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

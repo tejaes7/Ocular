@@ -57,11 +57,40 @@ case-insensitively. **Do not loosen this.** The strict shape is the security
 boundary: accepting arbitrary strings would let anyone guess or choose another
 device's key and read its watchlist.
 
+### Error envelope
+
+Every failing route returns the same shape:
+
+```json
+{ "ok": false, "error": "Missing or malformed device token", "code": "UNAUTHORIZED" }
+```
+
+**`code` is the contract; `error` is display text.** Clients branch on `code`, so
+reword `error` freely and never rename a code — a caller checking
+`code === 'UNAUTHORIZED'` simply stops matching and silently falls into its
+generic branch.
+
+| Code | Status | Meaning |
+|---|---|---|
+| `BAD_REQUEST` | 400 | Body was not JSON |
+| `UNAUTHORIZED` | 401 | Missing or malformed device token |
+| `MISSING_AUTH_HEADER` | 401 | No `Authorization` header on `/me` |
+| `MALFORMED_AUTH_HEADER` | 401 | Present, but not `Bearer <token>` |
+| `INVALID_TOKEN` | 401 | Firebase token failed verification |
+| `NOT_FOUND` | 404 | Unknown route, or right path with the wrong method |
+| `PERSIST_FAILED` | 500 | The account could not be written |
+
 ### `GET /health`
 
 ```json
-{ "ok": true, "service": "ocular-sync", "time": 1769000000000 }
+{ "ok": true, "service": "ocular-sync", "status": "healthy", "db": "connected", "time": 1769000000000 }
 ```
+
+**Returns 503 with `status: "degraded"` and `db: "unavailable"` when D1 cannot be
+reached.** It queries the database rather than just returning a literal, because
+the failure worth detecting is not "is the script running" — Cloudflare already
+5xxs for that — but a wrong `database_id` or an unapplied migration, which leaves
+the worker up and every other route 500ing. Use this as the uptime probe.
 
 ### `POST /sync`
 
@@ -131,6 +160,7 @@ The scheme is required: a bare token, or `Bearer` with nothing after it, is a
 // Response 200
 {
   "ok": true,
+  "isNew": false,                       // true only if this call created the account
   "user": {
     "uid": "firebase-uid-abc123",       // the only identity key
     "email": "shopper@example.com",     // may be null
@@ -140,11 +170,15 @@ The scheme is required: a bare token, or `Bearer` with nothing after it, is a
 }
 ```
 
-| Status | Meaning |
-|---|---|
-| 401 | No `Authorization` header, wrong scheme, or the token failed verification |
-| 404 | `/me` called with a method other than GET |
-| 500 | The account could not be persisted |
+**There is no separate register endpoint, and there must not be one.** Google
+sign-in either matches an existing account or mints one, and the client cannot
+know which applies before calling. The website used to offer "Login" and
+"Register" tabs whose buttons called the identical function, so a returning
+visitor could pick Register and a new one could pick Login — and the label lied
+either way. `isNew` reports what actually happened, so the UI greets the visitor
+after the fact instead of asking them to predict it.
+
+See the error-envelope table above for `/me`'s failure codes.
 
 Things that are load-bearing here:
 

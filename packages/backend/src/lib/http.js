@@ -18,6 +18,18 @@ export const json = (body, status = 200) =>
     headers: { 'Content-Type': 'application/json', ...CORS },
   });
 
+/**
+ * The error envelope every failing route returns.
+ *
+ * `code` is the stable, machine-readable part; `error` is a human sentence.
+ * Clients branch on `code` and display `error`. That split matters: reword the
+ * sentence whenever you like, but changing a code breaks callers silently,
+ * because a client checking `code === 'UNAUTHORIZED'` just stops matching and
+ * falls into its generic branch. Codes are part of the contract in docs/API.md.
+ */
+export const fail = (code, message, status) =>
+  json({ ok: false, error: message, code }, status);
+
 export const preflight = () => new Response(null, { status: 204, headers: CORS });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

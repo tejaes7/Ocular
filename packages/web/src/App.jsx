@@ -10,12 +10,24 @@ import Footer from './components/Footer';
 import NotificationToast from './components/NotificationToast';
 import ScrollPriceGraph from './components/ScrollPriceGraph';
 import VideoBackground from './components/VideoBackground';
+import WishlistDashboard from './components/WishlistDashboard';
+import { initialProducts } from './data/mockProducts';
 
 export default function App() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
   const [toastMessage, setToastMessage] = useState(null);
+
+  // The dashboard below is an interactive **demo** — it is how a visitor sees
+  // what tracking looks like before installing anything, which is why it ships
+  // with sample products and a "simulate a drop" button.
+  //
+  // It is not, and must not become, a view of the visitor's real watchlist.
+  // Real prices live in extension storage on the device; the website has no
+  // access to them and no account is linked to price data by design (see the
+  // identity section in docs/API.md). Making this live needs the extension to
+  // hand its local data to the page, which does not exist yet.
+  const [demoProducts, setDemoProducts] = useState(initialProducts);
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
@@ -28,10 +40,9 @@ export default function App() {
     triggerToast("Product link parsed! Added to Ocular price tracker");
   };
 
-  const handleOpenAuth = (mode = 'login') => {
-    setAuthMode(mode);
-    setIsAuthOpen(true);
-  };
+  // Google sign-in creates the account or finds it, so there is nothing for the
+  // caller to choose here. Navbar used to pass 'login' or 'register'.
+  const handleOpenAuth = () => setIsAuthOpen(true);
 
   return (
     <div className="min-h-screen theme-bg-main theme-text-main relative">
@@ -53,6 +64,12 @@ export default function App() {
 
       <HowItWorks onOpenDownload={() => setIsDownloadOpen(true)} />
 
+      <WishlistDashboard
+        products={demoProducts}
+        setProducts={setDemoProducts}
+        onTriggerAlertToast={triggerToast}
+      />
+
       <VideoTutorial onOpenDownload={() => setIsDownloadOpen(true)} />
 
       <Footer />
@@ -62,11 +79,7 @@ export default function App() {
         onClose={() => setIsDownloadOpen(false)}
       />
 
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        initialMode={authMode}
-      />
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
       <NotificationToast
         toastMessage={toastMessage}

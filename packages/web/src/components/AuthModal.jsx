@@ -1,20 +1,32 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, ShieldCheck } from 'lucide-react';
 import Logo from './Logo';
 import { useAuth } from '../auth/AuthContext.jsx';
 
-export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
-  const [mode, setMode] = useState(initialMode); // 'login' or 'register'
-  const { user, profile, pending: isAuthenticating, error, signIn, signOut } = useAuth();
+/**
+ * There is no "register" here, deliberately.
+ *
+ * This modal used to show Login and Register tabs whose buttons called exactly
+ * the same function. Google sign-in has no such split: one popup either matches
+ * an existing account or creates one, and the visitor cannot know which applies
+ * to them. Asking them to choose meant a returning user could pick "Register"
+ * and a new one could pick "Login", and in both cases the label lied about what
+ * just happened. The server reports which it did via `isNew`, so the greeting is
+ * decided after the fact instead of guessed beforehand.
+ */
+export default function AuthModal({ isOpen, onClose }) {
+  const { user, profile, isNew, pending: isAuthenticating, error, signIn, signOut } = useAuth();
 
-  // Prefer whatever the backend knows about the account, fall back to the
-  // Google profile so the panel still renders if /me is unreachable.
+  // Prefer whatever the backend knows about the account, and fall back to the
+  // Google profile so the panel still renders if /me is unreachable. The field
+  // names are the worker's (`displayName`, `photoURL`) — reading `name`/`avatar`
+  // here silently discarded the backend profile every time.
   const userProfile = user
     ? {
-        name: profile?.name || user.displayName || 'Ocular user',
+        name: profile?.displayName || user.displayName || 'Ocular user',
         email: profile?.email || user.email || '',
-        avatar: profile?.avatar || user.photoURL || '',
+        avatar: profile?.photoURL || user.photoURL || '',
       }
     : null;
 
@@ -54,40 +66,20 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               <Logo size="md" />
             </div>
             <h3 className="text-xl font-extrabold theme-text-main">
-              {userProfile ? 'Signed In to Ocular' : mode === 'login' ? 'Sign in to Ocular' : 'Create your Ocular Account'}
+              {userProfile
+                ? isNew
+                  ? 'Welcome to Ocular'
+                  : 'Welcome back'
+                : 'Continue to Ocular'}
             </h3>
             <p className="text-xs theme-text-muted">
               {userProfile
-                ? 'Your account is synchronized with Ocular price tracker'
-                : 'Sign in with Google to sync your tracked items across devices'}
+                ? isNew
+                  ? 'Your account is ready. Your watchlist will follow you between browsers.'
+                  : 'Signed in. Your watchlist is synced.'
+                : 'Sign in with Google. If you have not used Ocular before, this creates your account.'}
             </p>
           </div>
-
-          {/* Login / Register Toggle Tabs */}
-          {!userProfile && (
-            <div className="flex p-1 rounded-xl theme-bg-surface theme-border border mb-6">
-              <button
-                onClick={() => setMode('login')}
-                className={`w-1/2 py-2 rounded-lg text-xs font-bold transition-all ${
-                  mode === 'login'
-                    ? 'theme-accent-bg text-[#14283f] shadow-md'
-                    : 'theme-text-muted hover:theme-text-main'
-                }`}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => setMode('register')}
-                className={`w-1/2 py-2 rounded-lg text-xs font-bold transition-all ${
-                  mode === 'register'
-                    ? 'theme-accent-bg text-[#14283f] shadow-md'
-                    : 'theme-text-muted hover:theme-text-main'
-                }`}
-              >
-                Register
-              </button>
-            </div>
-          )}
 
           {/* Authenticated Profile View */}
           {userProfile ? (
@@ -155,7 +147,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                     </svg>
-                    <span>{mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}</span>
+                    <span>Continue with Google</span>
                   </>
                 )}
               </button>

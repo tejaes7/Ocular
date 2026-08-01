@@ -51,12 +51,16 @@
   }
 }
 
-/* Custom pointer, built from the supplied artwork.
-   The source arrow is pure white, which would be invisible against this site's
-   white background, so it carries a thin #14283f rim. The two numbers are the
-   hotspot — the pixel that actually clicks — placed on the arrow tip. */
+/* Custom pointer.
+   Was a 22x22 PNG, which rendered noticeably heavier than the system arrow —
+   a bitmap cursor is drawn at its own pixel size, so it also softened on
+   high-DPI screens. This is the same shape as vector: it stays sharp at any
+   scale, is a slimmer silhouette, and costs no request.
+   Navy fill with a white rim so it reads on both the light page and the dark
+   video sections. The trailing `2 1` is the hotspot — the pixel that actually
+   clicks — sitting on the arrow tip. */
 :root {
-  --cursor-arrow: url('/cursor.png') 0 0;
+  --cursor-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cpath d='M2 1.2 L2 13 L4.9 10.3 L6.9 14.6 L8.8 13.7 L6.9 9.6 L10.8 9.4 Z' fill='%2314283f' stroke='%23ffffff' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E") 2 1;
 }
 
 body {
