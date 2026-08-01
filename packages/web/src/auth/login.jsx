@@ -14,8 +14,8 @@ const provider = new GoogleAuthProvider();
 export async function login() {
   const result = await signInWithPopup(auth, provider);
   const token = await result.user.getIdToken();
-  const profile = await getCurrentUser(token);
-  return { user: result.user, profile };
+  const { user: profile, isNew } = await getCurrentUser(token);
+  return { user: result.user, profile, isNew };
 }
 
 export function logout() {

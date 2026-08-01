@@ -37,6 +37,8 @@ function stubDb(results = []) {
     },
     run: async () => ({ success: true }),
     all: async () => queue.shift() ?? { results: [] },
+    // Real D1 statements expose first() without bind(); /health relies on it.
+    first: async () => ({ 1: 1 }),
   });
 
   return {
@@ -66,6 +68,49 @@ test('GET /health reports service liveness', async () => {
   const body = await response.json();
   assert.equal(body.ok, true);
   assert.equal(body.service, 'ocular-sync');
+  assert.equal(body.status, 'healthy');
+  assert.equal(body.db, 'connected');
+});
+
+test('GET /health reports 503 when the database is unreachable', async () => {
+  // The failure this exists to catch: a wrong database_id or an unapplied
+  // migration leaves the worker running and every route 500ing. A health check
+  // that only proves the script is alive would report healthy throughout.
+  const brokenDb = {
+    DB: {
+      prepare() {
+        return {
+          first: async () => {
+            throw new Error('D1_ERROR: no such table');
+          },
+        };
+      },
+    },
+  };
+
+  const response = await worker.fetch(new Request('https://ocular.test/health'), brokenDb);
+
+  assert.equal(response.status, 503);
+
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.status, 'degraded');
+  assert.equal(body.db, 'unavailable');
+});
+
+test('error responses carry a stable machine-readable code', async () => {
+  // The frontend branches on `code`; `error` is display text and free to reword.
+  const notFound = await worker.fetch(new Request('https://ocular.test/nope'), stubDb());
+  assert.equal((await notFound.json()).code, 'NOT_FOUND');
+
+  const noToken = await worker.fetch(post({ products: [] }), stubDb());
+  assert.equal((await noToken.json()).code, 'UNAUTHORIZED');
+
+  const badBody = await worker.fetch(
+    post('{not json', { Authorization: `Bearer ${VALID_TOKEN}` }),
+    stubDb()
+  );
+  assert.equal((await badBody.json()).code, 'BAD_REQUEST');
 });
 
 test('OPTIONS preflight is answered with CORS headers', async () => {

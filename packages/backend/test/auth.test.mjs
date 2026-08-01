@@ -29,36 +29,63 @@ const GOOGLE_USER = {
   photoURL: 'https://example.com/avatar.png',
 };
 
+const isWrite = (sql) => /INSERT|UPDATE|DELETE/i.test(sql);
+
 /**
- * D1 double that records every bound statement. `RETURNING *` is simulated by
- * echoing the bound arguments back as a row, which is what the real upsert does.
+ * D1 double that records every bound statement.
+ *
+ * `calls` is everything; `writes` is only the mutating statements, so a test
+ * asserting "one row was written" keeps meaning that even though the route also
+ * issues a SELECT first to work out `isNew`. `RETURNING *` is simulated by
+ * echoing the bound arguments back, which is what the real upsert does.
+ *
+ * `existingUser` is what the pre-write lookup finds — null models a first
+ * sign-in, a row models a returning one.
  */
-function recordingDb(rowFor = echoRow) {
-  const writes = [];
+function recordingDb({ existingUser = null, upsertReturnsNothing = false } = {}) {
+  const calls = [];
+
+  const respond = ({ sql, args }) => {
+    if (isWrite(sql)) return upsertReturnsNothing ? null : echoRow(args);
+    return existingUser;
+  };
 
   return {
-    writes,
+    calls,
+    get writes() {
+      return calls.filter((c) => isWrite(c.sql));
+    },
     env: {
       ...ENV_VARS,
       DB: {
         prepare(sql) {
-          return {
+          const statement = {
             bind(...args) {
-              writes.push({ sql, args });
+              calls.push({ sql, args });
               return {
-                first: async () => rowFor({ sql, args }),
+                first: async () => respond({ sql, args }),
                 run: async () => ({ success: true }),
                 all: async () => ({ results: [] }),
               };
             },
+            // D1 statements expose first/all/run without bind() too — /health
+            // uses `prepare('SELECT 1').first()`.
+            first: async () => {
+              calls.push({ sql, args: [] });
+              return respond({ sql, args: [] });
+            },
+            all: async () => ({ results: [] }),
+            run: async () => ({ success: true }),
           };
+          return statement;
         },
       },
     },
   };
 }
 
-const echoRow = ({ args }) => ({
+/** Simulates `RETURNING *` on the upsert. */
+const echoRow = (args) => ({
   id: 1,
   firebase_uid: args[0],
   email: args[1],
@@ -202,11 +229,65 @@ test('GET /me returns the documented fields and not the internal row id', async 
 test('GET /me reports a failed write as a 500, never as a hollow success', async () => {
   // The old check-then-insert could return { ok: true, user: null } if the
   // follow-up SELECT came back empty. A caller reading body.user.uid would throw.
-  const db = recordingDb(() => null);
+  const db = recordingDb({ upsertReturnsNothing: true });
   const response = await getCurrentUser(authed(), db.env, verifierFor(GOOGLE_USER));
 
   assert.equal(response.status, 500);
-  assert.equal((await response.json()).ok, false);
+
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'PERSIST_FAILED', 'clients branch on the code, not the sentence');
+});
+
+// --- new vs returning ------------------------------------------------------
+
+test('a first sign-in reports isNew: true', async () => {
+  const db = recordingDb({ existingUser: null });
+  const response = await getCurrentUser(authed(), db.env, verifierFor(GOOGLE_USER));
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.isNew, true);
+});
+
+test('a returning sign-in reports isNew: false and still succeeds', async () => {
+  // The bug this guards: the UI offered separate "Login" and "Register" tabs, so
+  // a returning visitor who picked Register, or a new one who picked Login, was
+  // being asked to predict something only the server can know. Google sign-in
+  // has no such split — one call either matches an account or mints one, and it
+  // must never turn either visitor away.
+  const db = recordingDb({
+    existingUser: {
+      id: 1,
+      firebase_uid: GOOGLE_USER.uid,
+      email: GOOGLE_USER.email,
+      display_name: GOOGLE_USER.name,
+      photo_url: GOOGLE_USER.photoURL,
+    },
+  });
+
+  const response = await getCurrentUser(authed(), db.env, verifierFor(GOOGLE_USER));
+  const body = await response.json();
+
+  assert.equal(response.status, 200, 'a returning user is never rejected');
+  assert.equal(body.isNew, false);
+  assert.equal(body.user.uid, GOOGLE_USER.uid);
+  assert.equal(db.writes.length, 1, 'still upserts, so the profile stays current');
+});
+
+// --- error codes -----------------------------------------------------------
+
+test('every rejection carries a distinct machine-readable code', async () => {
+  const cases = [
+    [meRequest(), verifierFor(GOOGLE_USER), 'MISSING_AUTH_HEADER'],
+    [meRequest({ Authorization: 'Bearer' }), verifierFor(GOOGLE_USER), 'MALFORMED_AUTH_HEADER'],
+    [authed(), rejectingVerifier, 'INVALID_TOKEN'],
+  ];
+
+  for (const [request, verify, expected] of cases) {
+    const response = await getCurrentUser(request, recordingDb().env, verify);
+    assert.equal((await response.json()).code, expected);
+  }
 });
 
 // --- configuration ---------------------------------------------------------
