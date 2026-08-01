@@ -6,7 +6,7 @@ compatibility_date = "2026-01-15"
 [[d1_databases]]
 binding = "DB"
 database_name = "ocular"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "d862ffaa-2c9a-4250-9740-6880d0f84c25"
 # Wrangler tracks what it has already run, so `npm run db:migrate` applies only
 # the pending files. Adding a migration means dropping it in this directory —
 # there is no per-file script to remember to update.
