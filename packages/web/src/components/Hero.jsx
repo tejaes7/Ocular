@@ -43,17 +43,17 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
         <motion.div
           initial={{ opacity: 0, y: 40, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: false, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full rounded-[3rem] bg-gradient-to-b from-sky-600 via-sky-600 to-sky-700 text-white p-12 sm:p-20 md:p-24 shadow-2xl shadow-sky-600/25 text-center space-y-6 border border-sky-400/30 transform-gpu"
+          className="w-full rounded-[3rem] bg-gradient-to-b from-[#92c6f5] via-[#7bb9f2] to-[#64acef] text-[#14283f] p-12 sm:p-20 md:p-24 shadow-2xl shadow-[#7bb9f2]/40 text-center space-y-6 border border-white/40 transform-gpu"
         >
           {/* Main Ocular Title (Thinner Font Weight) */}
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-tight text-white leading-none drop-shadow-sm"
+            className="text-4xl sm:text-5xl md:text-6xl font-medium tracking-tight text-[#14283f] leading-none drop-shadow-sm"
           >
             Ocular
           </motion.h1>
@@ -61,9 +61,9 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-            className="text-xs sm:text-sm text-sky-100 font-light max-w-md mx-auto leading-relaxed"
+            className="text-xs sm:text-sm text-[#14283f]/80 font-light max-w-md mx-auto leading-relaxed"
           >
             Track prices across online stores and get notified when prices drop.
           </motion.p>
@@ -72,14 +72,14 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
           <motion.div
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
             className="pt-2 max-w-xl mx-auto"
           >
             <form onSubmit={handleSubmit} className="relative group">
               <div className="relative bg-white/95 backdrop-blur-md rounded-2xl p-1.5 sm:p-2 flex flex-col sm:flex-row items-center gap-2 shadow-2xl border border-white/40">
                 <div className="flex items-center gap-2.5 w-full px-3 py-1.5 sm:py-0 text-slate-800">
-                  <Link2 className="text-sky-600 shrink-0" size={16} />
+                  <Link2 className="text-[#7bb9f2] shrink-0" size={16} />
                   <input
                     type="url"
                     value={inputUrl}
@@ -93,7 +93,7 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs shrink-0 flex items-center justify-center gap-1.5 shadow-md transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5 hover:shadow-lg"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#7bb9f2] hover:bg-[#5da8ee] text-[#14283f] font-semibold text-xs shrink-0 flex items-center justify-center gap-1.5 shadow-md transition-[transform,box-shadow,background-color] duration-200 cursor-pointer transform-gpu hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   {isSubmitting ? (
                     <>
@@ -115,9 +115,9 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 5 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="mt-4 p-2.5 rounded-xl bg-white/20 backdrop-blur-md text-white text-[11px] font-medium flex items-center justify-center gap-2 border border-white/30"
+                className="mt-4 p-2.5 rounded-xl bg-white/60 backdrop-blur-md text-[#14283f] text-[11px] font-medium flex items-center justify-center gap-2 border border-[#14283f]/20"
               >
-                <Check size={14} className="text-white shrink-0" />
+                <Check size={14} className="text-[#14283f] shrink-0" />
                 <span>Product link added to Ocular price tracker</span>
               </motion.div>
             )}
@@ -127,15 +127,15 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
           <motion.div
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
             className="pt-3 flex justify-center"
           >
             <button
               onClick={onOpenDownload}
-              className="py-3 px-7 rounded-2xl bg-white text-sky-700 hover:bg-sky-50 font-semibold text-xs flex items-center justify-center gap-2.5 shadow-xl cursor-pointer transform hover:-translate-y-1 hover:shadow-2xl transition-all duration-200"
+              className="py-3 px-7 rounded-2xl bg-white text-[#7bb9f2] hover:bg-[#eef6fd] font-semibold text-xs flex items-center justify-center gap-2.5 shadow-xl cursor-pointer transform-gpu hover:-translate-y-1 hover:shadow-2xl transition-[transform,box-shadow,background-color] duration-200"
             >
-              <ChromeIcon size={18} className="stroke-[2] text-sky-700" />
+              <ChromeIcon size={18} className="stroke-[2] text-[#7bb9f2]" />
               <span>Download Extension</span>
             </button>
           </motion.div>

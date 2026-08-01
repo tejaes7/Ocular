@@ -18,18 +18,18 @@ export default function Footer() {
   };
 
   return (
-    <footer className="relative z-20 bg-gradient-to-b from-sky-600 via-sky-600 to-sky-700 dark:from-sky-950 dark:via-sky-950 dark:to-slate-950 text-white border-t border-sky-400/30 dark:border-sky-800/60 text-xs transition-colors">
+    <footer className="relative z-20 bg-gradient-to-b from-[#92c6f5] via-[#7bb9f2] to-[#64acef] text-[#14283f] border-t border-white/40 text-xs transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 relative z-20">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-white/20 dark:border-sky-800/60">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-10 border-b border-[#14283f]/20 ">
           
           {/* Col 1: Brand Info */}
           <div className="lg:col-span-2 space-y-4">
             {/* Clean Logo directly on footer background with white text */}
             <div className="inline-block">
-              <Logo size="md" textColor="text-white" />
+              <Logo size="md" textColor="text-[#14283f]" />
             </div>
-            <p className="text-xs text-white/90 leading-relaxed max-w-sm">
+            <p className="text-xs text-[#14283f]/80 leading-relaxed max-w-sm">
               Ocular is your automated e-commerce price tracking assistant. Get notified when your bookmarked items hit their all-time lowest price.
             </p>
             
@@ -39,7 +39,7 @@ export default function Footer() {
                 href="https://github.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 dark:border-sky-800/60 text-white flex items-center justify-center transition-colors"
+                className="w-9 h-9 rounded-xl bg-[#14283f]/10 hover:bg-[#14283f]/20 border border-[#14283f]/20 text-[#14283f] flex items-center justify-center transition-colors"
                 aria-label="GitHub"
               >
                 <Code2 size={18} />
@@ -49,11 +49,11 @@ export default function Footer() {
 
           {/* Col 2: Legal & Docs */}
           <div className="space-y-3">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Resources</h4>
-            <ul className="space-y-2 text-white/90">
+            <h4 className="text-sm font-bold text-[#14283f] uppercase tracking-wider">Resources</h4>
+            <ul className="space-y-2 text-[#14283f]/80">
               <li>
-                <button onClick={() => setActiveModal('docs')} className="hover:text-white underline-offset-2 hover:underline transition-colors cursor-pointer">
-                  Documentation & API
+                <button onClick={() => setActiveModal('docs')} className="hover:text-[#14283f] underline-offset-2 hover:underline transition-colors cursor-pointer">
+                Documentation & API
                 </button>
               </li>
               <li>
@@ -68,7 +68,7 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <button onClick={() => setActiveModal('terms')} className="hover:text-white underline-offset-2 hover:underline transition-colors cursor-pointer">
+                <button onClick={() => setActiveModal('terms')} className="hover:text-[#14283f] underline-offset-2 hover:underline transition-colors cursor-pointer">
                   Terms of Service
                 </button>
               </li>
@@ -77,8 +77,8 @@ export default function Footer() {
 
           {/* Col 3: Newsletter */}
           <div className="space-y-3">
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider">Updates Newsletter</h4>
-            <p className="text-xs text-white/90">
+            <h4 className="text-sm font-bold text-[#14283f] uppercase tracking-wider">Updates Newsletter</h4>
+            <p className="text-xs text-[#14283f]/80">
               Subscribe for feature updates and price alert digests.
             </p>
 
@@ -94,14 +94,14 @@ export default function Footer() {
                 />
                 <button
                   type="submit"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-sky-800 dark:bg-sky-600 text-white hover:bg-sky-900 transition-colors cursor-pointer"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-[#14283f] text-white hover:bg-[#0d1a2b] transition-colors cursor-pointer"
                 >
                   <Mail size={14} />
                 </button>
               </div>
 
               {isSubscribed && (
-                <p className="text-[11px] text-white font-semibold flex items-center gap-1">
+                <p className="text-[11px] text-[#14283f] font-semibold flex items-center gap-1">
                   <CheckCircle2 size={13} /> Subscribed to Ocular updates!
                 </p>
               )}
@@ -111,9 +111,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom Copyright Row */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-white/90">
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[#14283f]/80">
           <p>© {new Date().getFullYear()} Ocular Inc. All rights reserved.</p>
-          <div className="flex items-center gap-1 text-white/90">
+          <div className="flex items-center gap-1 text-[#14283f]/80">
             <span>Built for smart online shopping.</span>
           </div>
         </div>

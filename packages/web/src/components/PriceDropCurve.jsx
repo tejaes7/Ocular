@@ -80,7 +80,7 @@ export default function PriceDropCurve({ onTriggerToast }) {
         
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
-          <span className="px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-700 text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
             <Sparkles size={14} /> Historic Price Engine
           </span>
           <h2 className="text-2xl sm:text-4xl font-extrabold theme-text-main tracking-tight">
@@ -104,10 +104,10 @@ export default function PriceDropCurve({ onTriggerToast }) {
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold text-[10px] uppercase">
+                  <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 font-bold text-[10px] uppercase">
                     Amazon India
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-700 font-bold text-[10px] flex items-center gap-1">
                     <Flame size={11} /> All-Time Low
                   </span>
                 </div>
@@ -121,11 +121,11 @@ export default function PriceDropCurve({ onTriggerToast }) {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <span className="text-[10px] theme-text-muted block font-medium">All-Time Lowest Price</span>
-                <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                <span className="text-xl font-extrabold text-emerald-600 ">
                   ₹{currentPrice.toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-500/20">
+              <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 text-xs font-bold border border-emerald-500/20">
                 -{savingsPercent}% OFF (Saved ₹{savings.toLocaleString('en-IN')})
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function PriceDropCurve({ onTriggerToast }) {
             
             {/* Graph Header */}
             <div className="flex items-center justify-between text-xs theme-text-main font-bold mb-4">
-              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1.5 text-emerald-600 ">
                 <TrendingDown size={16} /> Live Price Drop Curve (High ➔ Low)
               </span>
               <span className="theme-text-muted font-mono text-[11px]">
@@ -218,7 +218,7 @@ export default function PriceDropCurve({ onTriggerToast }) {
               {historyData.map((d, idx) => (
                 <span
                   key={idx}
-                  className={`cursor-pointer ${idx === activeHoverIndex ? 'text-emerald-600 dark:text-emerald-400 font-bold' : ''}`}
+                  className={`cursor-pointer ${idx === activeHoverIndex ? 'text-emerald-600 font-bold' : ''}`}
                   onClick={() => setActiveHoverIndex(idx)}
                 >
                   {d.label}
@@ -231,7 +231,7 @@ export default function PriceDropCurve({ onTriggerToast }) {
           {/* Interactive Simulation Controls */}
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t theme-border">
             <div className="flex items-center gap-2 text-xs theme-text-muted font-medium">
-              <Bell size={15} className="text-emerald-600 dark:text-emerald-400" />
+              <Bell size={15} className="text-emerald-600 " />
               <span>Real-Time Watcher Active: Automatic Telegram & Web Push Alerts</span>
             </div>
 

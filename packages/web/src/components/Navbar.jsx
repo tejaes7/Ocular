@@ -1,6 +1,5 @@
 import React from 'react';
 import Logo from './Logo';
-import ThemeToggle from './ThemeToggle';
 
 export default function Navbar({ onOpenAuth }) {
   return (
@@ -12,10 +11,8 @@ export default function Navbar({ onOpenAuth }) {
           <Logo size="md" />
         </a>
 
-        {/* Auth Buttons & Theme Switcher */}
+        {/* Auth Buttons */}
         <div className="flex items-center gap-3">
-          <ThemeToggle />
-
           <button
             onClick={() => onOpenAuth && onOpenAuth('login')}
             className="px-4 py-2 rounded-xl theme-bg-surface hover:theme-bg-muted theme-text-main font-semibold text-xs theme-border border transition-all duration-200 cursor-pointer hover:-translate-y-0.5 hover:shadow-md"

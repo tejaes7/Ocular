@@ -1,39 +1,47 @@
 @import "tailwindcss";
 
-:root, [data-theme="default"] {
+/* Redefine Tailwind's own sans stack, otherwise the `font-sans` utility on
+   <body> beats the base rule below and everything falls back to system-ui. */
+@theme {
+  --font-sans: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Every text on the site uses the brand face, so the display and mono slots
+     point at it too rather than at a second family. */
+  --font-display: 'Poppins', system-ui, sans-serif;
+  --font-mono: 'Poppins', system-ui, sans-serif;
+}
+
+/* font-mono is used for prices and timings. Poppins isn't monospaced, so lock the
+   digits to a fixed advance width to keep those columns aligned. */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+:root {
   --bg-main: #ffffff;
   --bg-card: #f8fafc;
   --bg-surface: #f1f5f9;
   --bg-muted: #e2e8f0;
   --border-color: #e2e8f0;
-  --primary-accent: #0284c7;
-  --primary-accent-hover: #0369a1;
-  --secondary-accent: #0284c7;
+  /* Brand blue, chosen directly. Note it is a light tint: white text on it is only
+     2.09:1, so anything sitting on this colour uses #14283f ink (6.8:1) instead —
+     see .theme-accent-bg below and the Hero/Footer panels. As *text on white* it is
+     also 2.09:1; #3f8fd0 is the readable same-hue substitute if that's wanted. */
+  --primary-accent: #7bb9f2;
+  --primary-accent-hover: #5da8ee;
+  --secondary-accent: #7bb9f2;
+  --accent-mid: #7bb9f2;
+  --accent-light: #b5d9f8;
   --text-main: #0f172a;
   --text-muted: #475569;
   --text-subtle: #64748b;
-}
-
-[data-theme="dark"] {
-  --bg-main: #0d1117;
-  --bg-card: #161b22;
-  --bg-surface: #21262d;
-  --bg-muted: #30363d;
-  --border-color: #30363d;
-  --primary-accent: #38bdf8;
-  --primary-accent-hover: #0284c7;
-  --secondary-accent: #38bdf8;
-  --text-main: #f0f6fc;
-  --text-muted: #8b949e;
-  --text-subtle: #6e7681;
 }
 
 @layer base {
   body {
     background-color: var(--bg-main);
     color: var(--text-main);
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    font-weight: 350;
+    font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 400;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -51,10 +59,10 @@
 .theme-text-main { color: var(--text-main); }
 .theme-text-muted { color: var(--text-muted); }
 .theme-text-subtle { color: var(--text-subtle); }
-.theme-accent-bg { background-color: var(--primary-accent); color: #ffffff; }
+.theme-accent-bg { background-color: var(--primary-accent); color: #14283f; }
 .theme-accent-bg-hover:hover { background-color: var(--primary-accent-hover); }
 .theme-accent-text { color: var(--secondary-accent); }
-.theme-accent-bg-soft { background-color: rgba(2, 132, 199, 0.1); }
+.theme-accent-bg-soft { background-color: rgba(123, 185, 242, 0.18); }
 
 /* Glassmorphism & Custom Styling */
 .glass-panel {
@@ -73,19 +81,33 @@
 }
 
 /* Automatic Sideways Scrolling Marquee Animation */
+/* translate3d keeps the track on its own compositor layer, so each frame is a
+   GPU transform rather than a main-thread repaint of every card. */
 @keyframes marquee {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-50%); }
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
 }
 
 .animate-marquee {
   display: flex;
   width: max-content;
   animation: marquee 25s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
-.animate-marquee:hover {
-  animation-play-state: paused;
+/* Deliberately no :hover pause — the marquee keeps running even when the pointer
+   is over it. Pausing made the strip feel like it had snagged on the cursor. */
+
+/* Respect the OS "reduce motion" setting: no marquee, no scroll-linked easing,
+   no long transitions. Also disables the `scroll-smooth` class on <html>. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Custom Scrollbar */

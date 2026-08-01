@@ -1,7 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import myntraLogo from '../assets/stores/myntra.svg';
+// All logos are self-hosted. They used to be hotlinked from Wikimedia Commons,
+// which rate-limits hotlinking (we saw a 429 on Reliance Digital) and leaked every
+// visitor's IP to a third party.
 import amazonLogo from '../assets/stores/amazon.svg';
+import flipkartLogo from '../assets/stores/flipkart.svg';
+import myntraLogo from '../assets/stores/myntra.png';
+import meeshoLogo from '../assets/stores/meesho.png';
+import nykaaLogo from '../assets/stores/nykaa.svg';
+import cromaLogo from '../assets/stores/croma.png';
+import tataCliqLogo from '../assets/stores/tata-cliq.png';
+import relianceDigitalLogo from '../assets/stores/reliance-digital.svg';
 
 const stores = [
   {
@@ -11,8 +20,8 @@ const stores = [
   },
   {
     name: 'Flipkart',
-    logo: 'https://commons.wikimedia.org/wiki/Special:FilePath/Flipkart_logo_(2026).svg',
-    logoClass: 'h-11 scale-125',
+    logo: flipkartLogo,
+    logoClass: 'h-10',
   },
   {
     name: 'Myntra',
@@ -20,38 +29,46 @@ const stores = [
     logoClass: 'h-10',
   },
   {
+    // The only Meesho logo on Commons is the square app-tile version, so this one
+    // is near 1:1 where every other mark is ~3:1 wide.
     name: 'Meesho',
-    logo: 'https://commons.wikimedia.org/wiki/Special:FilePath/Meesho-final-logo_(1).jpg',
-    logoClass: 'h-10',
+    logo: meeshoLogo,
+    logoClass: 'h-11',
   },
   {
+    // Commons has no AJIO logo at all — only unrelated event photography — so this
+    // stays a wordmark until someone supplies the official asset.
     name: 'Ajio',
     wordmark: 'AJIO',
   },
   {
     name: 'Nykaa',
-    logo: 'https://commons.wikimedia.org/wiki/Special:FilePath/Nykaa_New_Logo.svg',
-    logoClass: 'h-10',
+    logo: nykaaLogo,
+    logoClass: 'h-9',
   },
   {
     name: 'Croma',
-    logo: 'https://commons.wikimedia.org/wiki/Special:FilePath/Croma_Logo.png',
+    logo: cromaLogo,
     logoClass: 'h-10',
   },
   {
     name: 'Tata CLiQ',
-    wordmark: 'TATA CLiQ',
+    logo: tataCliqLogo,
+    logoClass: 'h-10',
   },
   {
     name: 'Reliance Digital',
-    logo: 'https://commons.wikimedia.org/wiki/Special:FilePath/Reliance_Digital.svg',
+    logo: relianceDigitalLogo,
     logoClass: 'h-10',
   },
 ];
 
 function StoreCard({ store }) {
   return (
-    <div className="shrink-0 w-44 rounded-2xl theme-bg-card backdrop-blur-sm theme-border border shadow-sm p-4 flex flex-col items-center justify-center gap-3 transition-all transform hover:-translate-y-1 hover:shadow-lg">
+    // No backdrop-blur here: the card already has an opaque background, and a
+    // backdrop-filter on a permanently moving element costs a backdrop re-sample
+    // every frame, times however many cards are on screen.
+    <div className="shrink-0 w-44 rounded-2xl theme-bg-card theme-border border shadow-sm p-4 flex flex-col items-center justify-center gap-3 transition-[transform,box-shadow] duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg">
       <div className="h-12 w-32 flex items-center justify-center overflow-hidden">
         {store.logo ? (
           <img
@@ -79,7 +96,7 @@ export default function StoresBar() {
       id="stores"
       initial={{ opacity: 0, y: 45, scale: 0.98 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: false, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       className="relative z-20 py-10 bg-transparent border-y theme-border transition-colors transform-gpu"
     >

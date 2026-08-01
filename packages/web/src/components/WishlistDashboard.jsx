@@ -122,7 +122,7 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-bold mb-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-700 text-xs font-bold mb-2">
               <Sparkles size={14} /> Interactive Live Wishlist
             </div>
             <h2 className="text-2xl sm:text-4xl font-extrabold theme-text-main tracking-tight">
@@ -144,7 +144,7 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
         {/* Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
           <div className="theme-bg-surface p-4 rounded-xl theme-border border shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-sm shrink-0">
               <Tag size={18} />
             </div>
             <div>
@@ -154,17 +154,17 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
           </div>
 
           <div className="theme-bg-surface p-4 rounded-xl theme-border border shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-sm shrink-0">
               <TrendingDown size={18} />
             </div>
             <div>
               <span className="text-[11px] theme-text-muted font-medium block">Total Saved</span>
-              <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">₹{totalSavings.toLocaleString('en-IN')}</span>
+              <span className="text-base font-extrabold text-emerald-600 ">₹{totalSavings.toLocaleString('en-IN')}</span>
             </div>
           </div>
 
           <div className="theme-bg-surface p-4 rounded-xl theme-border border shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-sm shrink-0">
               <Flame size={18} />
             </div>
             <div>
@@ -174,7 +174,7 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
           </div>
 
           <div className="theme-bg-surface p-4 rounded-xl theme-border border shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-sm shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-sm shrink-0">
               <Bell size={18} />
             </div>
             <div>
@@ -279,7 +279,7 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
                       <div className="flex items-baseline justify-between pt-1 border-t theme-border">
                         <div>
                           <span className="text-[10px] theme-text-muted block">Current Price</span>
-                          <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                          <span className="text-lg font-extrabold text-emerald-600 ">
                             ₹{product.currentPrice.toLocaleString('en-IN')}
                           </span>
                         </div>
@@ -294,7 +294,7 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
                       <div className="theme-bg-muted p-2.5 rounded-xl theme-border border">
                         <div className="flex justify-between text-[10px] theme-text-muted font-mono mb-1">
                           <span>Price History</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">Low: ₹{product.lowestPrice.toLocaleString('en-IN')}</span>
+                          <span className="text-emerald-600 font-bold">Low: ₹{product.lowestPrice.toLocaleString('en-IN')}</span>
                         </div>
                         <div className="h-12 w-full">
                           <svg className="w-full h-full" viewBox="0 0 260 50">
@@ -316,7 +316,7 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
                       onClick={() => handleToggleNotify(product.id)}
                       className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors ${
                         product.isNotifyActive
-                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold'
+                          ? 'bg-emerald-500/15 text-emerald-700 font-bold'
                           : 'theme-bg-surface theme-text-muted theme-border border'
                       }`}
                     >
@@ -327,7 +327,7 @@ export default function WishlistDashboard({ products, setProducts, onTriggerAler
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleSimulateDrop(product.id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-[11px] flex items-center gap-1 hover:bg-amber-500/25 transition-colors"
+                        className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-700 font-bold text-[11px] flex items-center gap-1 hover:bg-amber-500/25 transition-colors"
                       >
                         <Zap size={13} /> Drop Price
                       </button>

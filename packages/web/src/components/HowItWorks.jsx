@@ -49,7 +49,7 @@ export default function HowItWorks({ onOpenDownload }) {
       id="how-it-works"
       initial={{ opacity: 0, y: 50, scale: 0.98 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: false, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       className="py-20 bg-transparent border-t theme-border relative z-20 transform-gpu"
     >
@@ -59,7 +59,7 @@ export default function HowItWorks({ onOpenDownload }) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
           className="text-center max-w-3xl mx-auto space-y-3 mb-14"
         >
@@ -82,10 +82,10 @@ export default function HowItWorks({ onOpenDownload }) {
                 key={step.number}
                 initial={{ opacity: 0, y: 35 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: false }}
+                viewport={{ once: true }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 * idx }}
                 onClick={() => setActiveStep(idx)}
-                className={`relative rounded-3xl p-6 glass-card backdrop-blur-sm border transition-all duration-300 flex flex-col justify-between transform hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl ${
+                className={`relative rounded-3xl p-6 glass-card backdrop-blur-sm border transition-[transform,box-shadow,border-color] duration-300 flex flex-col justify-between transform-gpu hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl ${
                   isActive
                     ? 'theme-border border shadow-xl'
                     : 'theme-border hover:opacity-95'
@@ -132,7 +132,7 @@ export default function HowItWorks({ onOpenDownload }) {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false }}
+          viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
           className="mt-12 text-center"
         >

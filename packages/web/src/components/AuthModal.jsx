@@ -66,7 +66,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                 onClick={() => setMode('login')}
                 className={`w-1/2 py-2 rounded-lg text-xs font-bold transition-all ${
                   mode === 'login'
-                    ? 'theme-accent-bg text-white shadow-md'
+                    ? 'theme-accent-bg text-[#14283f] shadow-md'
                     : 'theme-text-muted hover:theme-text-main'
                 }`}
               >
@@ -76,7 +76,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                 onClick={() => setMode('register')}
                 className={`w-1/2 py-2 rounded-lg text-xs font-bold transition-all ${
                   mode === 'register'
-                    ? 'theme-accent-bg text-white shadow-md'
+                    ? 'theme-accent-bg text-[#14283f] shadow-md'
                     : 'theme-text-muted hover:theme-text-main'
                 }`}
               >
@@ -106,7 +106,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               <div className="pt-2 flex gap-3">
                 <button
                   onClick={onClose}
-                  className="w-full py-3 rounded-xl theme-accent-bg text-white font-bold text-xs shadow-md"
+                  className="w-full py-3 rounded-xl theme-accent-bg text-[#14283f] font-bold text-xs shadow-md"
                 >
                   Continue to Ocular
                 </button>
@@ -128,7 +128,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
               >
                 {isAuthenticating ? (
                   <span className="flex items-center gap-2 theme-text-muted">
-                    <svg className="animate-spin h-4 w-4 text-sky-600" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin h-4 w-4 text-[#7bb9f2]" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
