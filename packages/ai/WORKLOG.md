@@ -44,18 +44,25 @@ history. Look ahead at days 11–40. If the price fell 5% or more, the right ans
 on day 10 was "wait" → label 1. Otherwise 0. Every day of every history becomes a
 labelled row, with no human annotation. (Start with 5% and 30 days.)
 
-**Gap 2 — generate the data.** Write a script that invents realistic histories in
-five shapes: flat, slow decline, seasonal dip, **fake sale**, and noisy. The fake
-sale is the important one: ₹10,000 for months → spike to ₹20,000 for a week →
-"discount" to ₹11,000. That scam is the reason this product exists.
+**Gap 2 — collect the data. Do not invent it.** An earlier draft of this section
+said to write a generator that produces five shapes of fake history (flat, slow
+decline, seasonal dip, fake sale, noisy). **That was rejected on 2026-07-29 and
+the decision stands:** ship the deterministic pipeline, run it for 5–6 months,
+collect real histories, then train. A model trained on invented series learns the
+generator's assumptions about what a fake sale looks like, and the whole point is
+that we do not yet know.
+
+The consequence is that **extraction and storage quality is the AI work** until
+there is data. That is where the last three sessions went, and correctly so.
 
 **Features are already written.** `features.py` turns one price history into 14
 numbers. Call it; don't rewrite it. (Rewriting it is how you get a model that
 scores well in testing and behaves badly for real users — the numbers it trains
 on stop matching the numbers it sees live.)
 
-**First thing to build:** the fake-data generator (task 2 below). Everything else
-is blocked on it.
+**First thing to build:** nothing, yet. Task 1 (`build_dataset.py`) can be
+written and tested against own exports today; everything past it waits on real
+collected histories.
 
 ---
 
@@ -128,7 +135,7 @@ retrains.
 |---|---|---|
 | 0 | Ratify topology; record it in `docs/PLAN.md` | open |
 | 1 | `training/build_dataset.py` — backup JSON -> labelled rows | open |
-| 2 | Synthetic series generator (flat/trend/seasonal/fake-sale/noisy) — there are no users, so there is no real data | open |
+| 2 | ~~Synthetic series generator~~ | **void** — killed by the 2026-07-29 no-synthetic-data decision. Left in the table so it is not proposed a third time |
 | 3 | `eval/metrics.py` — baseline-relative, precision/recall/PR-AUC | open |
 | 4 | Freeze the 11 `test_baseline.py` cases into the eval set | open |
 | 5 | `training/train_verdict.py`; ship only if it beats baseline | open |
@@ -173,6 +180,113 @@ label 1 if the price drops at least `X%` below it within `N` days. Start
 ---
 
 ## Session log
+
+### 2026-08-01 — accounts shipped against the ratified decision; split identity ratified instead
+
+**Firebase Authentication landed on `main` while nobody was looking at the
+anonymity decision.** PR #11 (Rohith, merged 07:31Z) added real Firebase ID-token
+verification, a `users` table holding email / display name / photo URL, and
+`GET /me`. PR #13 (Sumith, merged 10:54Z) replaced the whole web UI with a React
++ Vite + Tailwind app carrying a sign-in modal. PR #12 is open as a
+frontend-integration reference, explicitly not for merge.
+
+That contradicts the 2026-07-29 entry directly, which recorded the Google-auth
+proposal as **rejected** — "OAuth supplies identity, which this dataset
+specifically must not have." Seven files still said "no accounts", including
+`privacy.html`, which is a **published legal document** and the URL the Chrome
+Web Store listing depends on.
+
+**Ratified: split identity.** Not a reversal and not a revert. Two identities
+that are never joined — `/sync` authenticates with the anonymous device UUID and
+is the only route touching price data; `/me` authenticates with a Firebase token
+and is the only route that knows a name. Accounts are optional and buy exactly
+one thing: a watchlist that follows you between your own browsers.
+
+The invariant is now written down rather than assumed: **no row that carries a
+price may carry a user id.** It sits in `docs/API.md` with pointers from
+`0002_users.sql` and `deviceIdFrom()` — the two places someone would actually be
+standing when they consider adding one. That is what keeps the collection plan
+defensible; it should cost a team decision, not a migration.
+
+**PR #14 — four defects in the `/me` path, all invisible until a real login.**
+
+| Defect | Why nobody saw it |
+|---|---|
+| Migration 0002 applied by **nothing** — `db:init` named `0001_init.sql` explicitly, and the README's step 2 pointed at a `schema.sql` that does not exist | Backend has never been deployed. First `/me` call → `no such table: users` |
+| `email TEXT NOT NULL UNIQUE` | Phone/anonymous sign-in has no email claim → NOT NULL violation. Google-then-password gives two uids on one address → UNIQUE violation, permanent lockout |
+| `FIREBASE_PROJECT_ID` fell back to a hardcoded id | Set nowhere in the repo, so the fallback was *always* what ran. A wrong project keeps accepting tokens and looks healthy |
+| check-then-insert: race on concurrent first login, and `{ ok: true, user: null }` when the re-SELECT came back empty | A 200 carrying no user; client throws on `body.user.uid` |
+
+Fixed with `wrangler d1 migrations apply` (so adding a file is the whole
+procedure), `firebase_uid` as the sole identity key, a loud throw on missing
+config, and an upsert with `RETURNING`. Also: the `Bearer` scheme is now
+*required* — the Headers API trims values, so `Authorization: Bearer` arrived as
+`Bearer` and the old prefix-strip handed the literal scheme name to the verifier
+as a credential.
+
+13 tests, asserting on **what reached the database** via a recording D1 stub.
+Each one was confirmed to fail with its fix reverted. Backend 28 → 41.
+
+**PR #15 — the docs, plus two things #13 broke silently.** `privacy.html` linked
+`public/styles.css`, which the Vite migration deleted, so the policy has been
+rendering unstyled with nothing reporting it — styles are now inlined, because a
+legal page should not carry a build dependency it can lose. And `Footer.jsx`
+replaced the link to it with a **modal containing its own two-sentence privacy
+text** that said different things. A modal also has no URL, which is the one
+thing the Web Store requires. Both fixed; `/me` documented.
+
+**The PR #8 lesson recurred in three days, which makes it structural.** #11
+merged with backend CI green at 28/28, every one of those tests over a pure
+helper, none touching `createUser` — whose only observable effect is a write.
+That is verbatim what #8 taught on 2026-07-30. Twice now the PR was on its
+author's own CODEOWNERS path, so CI was the only gate, and **CI cannot see a
+missing write.** The process question raised last entry is no longer
+hypothetical: it has now cost us two incidents. Worth deciding.
+
+**Fifth and sixth instances of the standing silent-failure shape** (after
+`firstMatch`, the CODEOWNERS handle, and the dropped `recordSuccess`): a
+migration nothing applies, and a config default that hides its own absence. The
+hypothesis holds — *a failure that is indistinguishable from success at the point
+where you would notice.* Both were found by asking "what applies this?" and "what
+sets this?" rather than by reading the code, which is the technique that keeps
+working.
+
+**New gap found: CI never builds `packages/web`.** Root `npm run build` is
+`-w @ocular/extension`. #13 added ~6,400 lines of React that CI does not compile,
+so a broken component merges green. Verified my own edit with esbuild across all
+23 components instead. Flagged in #15, not folded in.
+
+**Reviewed PR #12** — reference code gets copied verbatim, so it was worth
+reading closely. `login.jsx` does `console.log("Firebase Token:", token)`, which
+prints a live one-hour bearer credential; `api.js` hardcodes
+`http://127.0.0.1:8787` (wrong host *and* blocked as mixed content from an HTTPS
+page) and returns `response.json()` without checking `ok`, so a 401 reads as
+success. No token refresh, so tabs 401 after an hour. Noted explicitly that the
+committed `firebaseConfig` is **fine** — it is public by design — so nobody
+"fixes" it later; but its `measurementId` is a Google Analytics stream sitting
+one import away from live, and the privacy policy says no analytics.
+
+**Still open:**
+- **PRs #14 and #15 need review.** Both green. #14 is Rohith's path; #15 touches
+  Sumith's (`privacy.html`, `Footer.jsx`) and Rohith's. **Merge #14 first** — #15
+  documents `/me` as #14 leaves it.
+- **The AI track has not moved.** Tasks 0–7 are all still open; this session went
+  entirely on the accounts collision. That was the right call — the invariant
+  protects the dataset the whole plan depends on — but it is the second session
+  in a row spent on data quality rather than modelling.
+- **Manual step, cannot be scripted:** reload Ocular at `chrome://extensions`.
+  The v3 migration runs on the next service-worker startup and logs what it
+  dropped. Still not done, still the only way to confirm `repairHistory` behaves
+  on the real profile rather than on the export. Now the longest-running open item.
+- **Decide whether checker/backend changes need a non-owner reviewer.** Two
+  incidents now.
+- **Wire `packages/web` into CI.** Nobody owns this yet.
+- Handed to Harsha, unchanged: `checker/cron.js` stores `result.price` with no
+  `isPlausibleReading` gate; `scanHtml` Amazon title.
+- Handed to Rohith: deploy the backend. **Do not deploy before #14 merges** — the
+  users table does not exist in any environment until the migration runner lands.
+- The anonymous collection endpoint, now unblocked on policy: `privacy.html` in
+  #15 states the account/price separation, so the remaining work is transport.
 
 ### 2026-07-30 — PR #7 merged with the checker's success path deleted; restored in PR #8
 
