@@ -181,6 +181,55 @@ label 1 if the price drops at least `X%` below it within `N` days. Start
 
 ## Session log
 
+### 2026-08-02 — split identity overturned for email alerts; the dataset premise is now broken
+
+**Read this before any collection work.** The anonymity guarantee this whole
+plan rests on no longer holds for every device.
+
+Sathwik decided, explicitly and with the trade-off stated, that price drops found
+while the browser is closed must reach the user by email. That requires knowing
+who the user is, so `POST /link` now writes `devices.user_id` and
+`prices → device → user` is a two-hop join. No price row gained a user column and
+the `prices` table is untouched — but a linked watchlist is no longer anonymous.
+The 2026-08-01 entry below, and the "no device linkage" line in the collection
+plan, are superseded on that point.
+
+Narrowing that survives, and is worth keeping when the export is written:
+linking is opt-in, reversible with the device token alone, and confined to one
+route. **Signed-out devices, and signed-in devices that never enabled email
+alerts, are exactly as anonymous as before.** So the dataset is not lost — it is
+now a dataset with two populations in it, and only one of them is collectable
+under the original terms.
+
+Also shipped this session (none of it AI work, but it touches what gets stored):
+
+- Server-found price drops now actually reach the user. `applyServerPrices` was
+  merging server readings into history and stopping — `lastPrice` was never
+  updated and no alert was raised, so the entire worker pipeline produced no
+  visible outcome. `catchUpFrom` in `extension/src/lib/sync.js` closes it.
+- Hidden-tab checks were sharing one 25s deadline between "wait for
+  `tab.status === complete`" and "poll for the price", so heavy retailers spent
+  the budget waiting on ad and analytics requests and the price poll got under a
+  second. Gating on `complete` is gone. This should raise the success rate of
+  automated checks, which is directly upstream of collection volume.
+- Server-side email alerts reuse `evaluateAlert` from `shared/`, deliberately —
+  a server that disagreed with the extension about what counts as a deal would
+  make the product contradict itself.
+
+**Still open:**
+
+- **The export decision, and it is mine.** `packages/ai` needs either an
+  exclusion for linked devices or a link-strip at export. Nothing enforces it
+  today; it exists only as prose in `docs/API.md`. This is the item most likely
+  to be forgotten, because the code that broke the premise lives in
+  `packages/backend` while the fix belongs here.
+- Worth deciding early whether the dataset should record *which* population a
+  series came from. Filtering later is only possible if provenance is stored at
+  write time — the same argument that put `strategy` and `confidence` on every
+  price row on 2026-07-29.
+- Nothing else about the AI track changed. Still no model, still no collection
+  transport, `provider: 'off'` unchanged.
+
 ### 2026-08-01 — accounts shipped against the ratified decision; split identity ratified instead
 
 **Firebase Authentication landed on `main` while nobody was looking at the
