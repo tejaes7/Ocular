@@ -191,35 +191,53 @@ Firebase token, or a real D1.** Those need `wrangler dev` and a live browser.
 
 ## Next — start here in a new session
 
-Phase 6 is code-complete and committed. Nothing below is a code change; it is
-configuration and verification, and **none of the email path can work until
-steps 1–3 are done.**
+**The backend is deployed (2026-08-03).** That was the blocker behind everything
+else, and it is gone.
 
-**1. Fill in the two constants** (`packages/extension/src/lib/store.js`)
+| | |
+|---|---|
+| Worker | `https://ocular.eeramallateja24bcd40.workers.dev` |
+| Site | `https://ocular-web-three.vercel.app` |
+| D1 | `ocular` — all three migrations applied to the remote |
+| Cron | every 30 min, live |
 
-- `DEFAULT_SYNC_ENDPOINT` — the deployed worker URL. Until it is set, sync stays
-  off for everyone and the whole closed-browser path is inert.
-- `DEFAULT_SITE_URL` — the site, for `<site>/?pair=<deviceId>`.
+Both constants in `packages/extension/src/lib/store.js` are filled in, so sync
+is **on by default** and the closed-browser path is no longer inert. The deploy
+ordering constraint that used to sit here is satisfied: the endpoint was set
+before the privacy page's "on by default" claim became true of a shipped build.
 
-**2. Backend config**
+Verified against the live deployment, not a stub: `/health` reports the D1
+connected, unauthenticated `/sync` is still 401, a product round-trips, a
+250-product payload returns 413 without writing or deleting anything, and the
+`complete` flag gates reconciliation in both directions. Test rows removed.
 
-- `npm run db:migrate -w @ocular/backend` — applies `0003_email_alerts.sql`
+**1. Email alerts — the only configuration still outstanding**
+
 - `wrangler secret put RESEND_API_KEY`
 - `wrangler secret put ALERT_FROM_EMAIL` — must be on a Resend-verified domain,
   or every send fails with a 403 that reads like an auth error
-- `VITE_API_BASE` in the Vercel project, for the pairing page
+- `VITE_API_BASE` in the Vercel project, so the pairing page can reach the
+  worker. Without it `api.js` has no backend to call and `/?pair=` cannot work.
 
-**3. Deploy order matters.** The privacy page now says sync is "on by default".
-Do not publish it before `DEFAULT_SYNC_ENDPOINT` is set, or it describes a
-default the shipped extension does not have.
+Until all three are set, everything else runs: prices are checked while the
+browser is closed and pulled down on the next sync. Only the *email* is missing.
 
-**4. Verify the loop end to end** — the one thing no test covers:
+**2. Load the rebuilt extension.** The endpoint is baked into the bundle at
+build time, so an already-installed unpacked copy keeps the old empty default
+until `npm run build` output is reloaded in Chrome.
+
+**3. Verify the loop end to end** — the one thing no test covers:
 
 track a product → wait for a server check → confirm a price row in D1 → pair a
 browser via the options page → force a drop → confirm the email arrives → press
 "Turn off" → confirm `devices.user_id` is null.
 
-**5. Then the older items**, unchanged: exercise hidden-tab checking in a live
+The first half of this is now unblocked and worth doing before the Resend
+secrets exist: track a real product, wait for a cron tick, and check the
+`prices` table. That proves the checker against live retailers, which is the
+part no unit test can reach.
+
+**4. Then the older items**, unchanged: exercise hidden-tab checking in a live
 browser, confirm percent/median rules fire once histories have a real median,
 and store submission (screenshots, $5 fee).
 
