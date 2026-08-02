@@ -39,7 +39,7 @@ export const SCHEMA_VERSION = 3;
  * settings over these defaults, so anyone who has already made a choice keeps
  * it.
  */
-export const DEFAULT_SYNC_ENDPOINT = '';
+export const DEFAULT_SYNC_ENDPOINT = 'https://ocular.eeramallateja24bcd40.workers.dev';
 
 /**
  * The Ocular website, used to pair this browser with an account for email
@@ -51,7 +51,7 @@ export const DEFAULT_SYNC_ENDPOINT = '';
  * website already has. Handing the device id to a page that is already signed in
  * is the whole flow.
  */
-export const DEFAULT_SITE_URL = '';
+export const DEFAULT_SITE_URL = 'https://ocular-web-three.vercel.app';
 
 const SETTINGS_KEY = 'settings';
 const PRODUCTS_KEY = 'products';
