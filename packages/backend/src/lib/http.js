@@ -33,6 +33,31 @@ export const fail = (code, message, status) =>
 export const preflight = () => new Response(null, { status: 204, headers: CORS });
 
 /**
+ * 429, with the one header that makes it actionable.
+ *
+ * `Retry-After` is what turns a rejection into something a client can obey; a
+ * bare 429 just invites an immediate retry, which is the behaviour we are trying
+ * to stop.
+ */
+export const rateLimited = (retryAfterSeconds) =>
+  new Response(
+    JSON.stringify({
+      ok: false,
+      code: 'RATE_LIMITED',
+      error: 'Too many requests. Try again shortly.',
+      retryAfter: retryAfterSeconds,
+    }),
+    {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': String(retryAfterSeconds),
+        ...CORS,
+      },
+    }
+  );
+
+/**
  * Pull a bearer token off a request.
  *
  * One implementation, because this is a security-relevant parse and two copies

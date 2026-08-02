@@ -35,10 +35,30 @@
  */
 
 import { runCron } from './checker/cron.js';
-import { fail, json, preflight } from './lib/http.js';
+import { deviceIdFrom, fail, json, preflight, rateLimited } from './lib/http.js';
+import { allow, callerKey } from './lib/ratelimit.js';
 import { handleSync } from './routes/sync.js';
 import { getCurrentUser } from './routes/auth.js';
 import { handleLink } from './routes/link.js';
+
+/**
+ * Per-route budgets, sized against what an honest client actually does.
+ *
+ * The extension syncs on startup, on an alarm, and when the user presses a
+ * button — call it a handful an hour, with the drain loop in sync.js adding at
+ * most MAX_SYNC_PAGES more to a single catch-up. 60/minute leaves that an order
+ * of magnitude of headroom while still stopping a runaway loop cold.
+ *
+ * `/link` is rarer and more sensitive — a person pairs a browser once — so it is
+ * tighter, and the low ceiling doubles as brake on anyone grinding at the pairing
+ * endpoint. `/health` is left unlimited on purpose: it is what an uptime probe
+ * hits on a fixed schedule, and throttling it would manufacture false alarms.
+ */
+const LIMITS = {
+  '/sync': { limit: 60, windowMs: 60_000 },
+  '/link': { limit: 10, windowMs: 60_000 },
+  '/me': { limit: 30, windowMs: 60_000 },
+};
 
 /**
  * Liveness, and it actually checks the thing that fails.
@@ -81,6 +101,14 @@ export default {
 
     if (url.pathname === '/health') {
       return handleHealth(env);
+    }
+
+    // Before any route body runs, so a throttled request costs no D1 work —
+    // which is the entire point of throttling it.
+    const budget = LIMITS[url.pathname];
+    if (budget) {
+      const verdict = allow(callerKey(request, deviceIdFrom(request)), budget);
+      if (!verdict.ok) return rateLimited(verdict.retryAfterSeconds);
     }
 
     if (url.pathname === '/sync' && request.method === 'POST') {
