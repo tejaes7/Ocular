@@ -23,7 +23,11 @@ export function syncConfigured(settings) {
 /**
  * Push the watchlist, pull back anything the server saw while we were closed.
  *
- * @returns {{ok: boolean, pulled?: number, tracking?: number, error?: string}}
+ * `catchUp` carries the products whose newest known price changed as a result —
+ * the caller is expected to update those products and raise any alert. Merging
+ * silently was the whole defect: see applyServerPrices below.
+ *
+ * @returns {{ok: boolean, pulled?: number, tracking?: number, catchUp?: Array, error?: string}}
  */
 export async function runSync(settings) {
   if (!syncConfigured(settings)) return { ok: false, error: 'Sync is not configured.' };
@@ -76,10 +80,10 @@ export async function runSync(settings) {
 
   if (!payload?.ok) return { ok: false, error: payload?.error || 'Malformed sync response.' };
 
-  const pulled = await applyServerPrices(payload.prices || {});
+  const { added, catchUp } = await applyServerPrices(payload.prices || {});
   await saveMeta({ lastSyncAt: payload.serverTime || Date.now() });
 
-  return { ok: true, pulled, tracking: payload.tracking };
+  return { ok: true, pulled: added, tracking: payload.tracking, catchUp };
 }
 
 /**
@@ -124,6 +128,41 @@ export function acceptableServerPoints(points, stats) {
 }
 
 /**
+ * Decide whether a merge changed what this device believes the price *is*.
+ *
+ * Pure and exported for the same reason as the gate above: this is the decision
+ * that turns a silent background merge into a notification, and getting it wrong
+ * is either a missed price drop or a burst of spurious alerts.
+ *
+ * Two conditions, both load-bearing:
+ *
+ *   - The newest point after the merge must be the server's. A sync usually
+ *     backfills *gaps* — readings older than the browser's own latest — and those
+ *     change history without changing the current price. Alerting on them would
+ *     announce a "drop" the user already lived through.
+ *   - Only the single newest point is considered. Pulling a week of server rows
+ *     after a long shutdown must produce one alert per product, not one per row.
+ *
+ * @returns {{price, inStock, ts, previousPrice}|null}
+ */
+export function catchUpFrom(before, after) {
+  const newest = after[after.length - 1];
+  if (!newest || newest.source !== 'server') return null;
+
+  const previous = before[before.length - 1];
+  if (previous && previous.ts >= newest.ts) return null;
+
+  return {
+    price: newest.price,
+    inStock: newest.inStock,
+    ts: newest.ts,
+    // Null on a product whose history was empty: with nothing to compare
+    // against there is no drop, and the caller will not raise an alert.
+    previousPrice: previous ? previous.price : null,
+  };
+}
+
+/**
  * Merge server observations into local history.
  *
  * mergeHistory() sorts by timestamp and re-collapses runs of identical prices,
@@ -138,10 +177,17 @@ export function acceptableServerPoints(points, stats) {
  * and fires a false "lowest ever". `mergeHistory` is not a defence: it only
  * stops a server point *overwriting* a browser one, and a bad point landing in
  * a gap overwrites nothing.
+ *
+ * What this used to do and no longer does: write history and stop. Nothing
+ * updated `lastPrice`, so the popup, the badge and the in-page panel all kept
+ * showing the old number while history held the new one, and nothing raised an
+ * alert, so a drop the worker caught overnight reached the user as silence. The
+ * entire server pipeline produced no visible outcome. Hence `catchUp`.
  */
 async function applyServerPrices(pricesByProduct) {
   let added = 0;
   let rejected = 0;
+  const catchUp = [];
 
   // Hoisted: this was called per product inside the loop, so a sync pulling N
   // products re-read the entire product list N times.
@@ -169,6 +215,9 @@ async function applyServerPrices(pricesByProduct) {
     if (merged.length !== before.length) {
       await setHistory(productId, merged);
       added += merged.length - before.length;
+
+      const event = catchUpFrom(before, merged);
+      if (event) catchUp.push({ productId, ...event });
     }
   }
 
@@ -179,5 +228,5 @@ async function applyServerPrices(pricesByProduct) {
     console.warn(`[Sync] Rejected ${rejected} implausible server reading(s).`);
   }
 
-  return added;
+  return { added, catchUp };
 }

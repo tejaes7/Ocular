@@ -72,19 +72,35 @@ export async function pricesSince(env, deviceId, since, limit) {
 }
 
 /**
+ * A device that has not synced in this long stops having its watchlist checked.
+ *
+ * Nothing is deleted and nothing needs cleaning up: `touchDevice` runs on every
+ * sync, so a device that comes back is picked up again on its very next tick.
+ */
+const DORMANT_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
  * Products eligible for a cron check.
  *
  * Ordering by `last_checked_at` gives round-robin fairness for free — the
  * longest-neglected product is always first in line. Backed by idx_products_due.
+ *
+ * The join skips dormant devices. Without it, someone who installs the
+ * extension, syncs once and uninstalls leaves their watchlist being fetched
+ * forever. That costs twice: it burns the 40-checks-per-cron budget on a device
+ * that will never read the result — starving the users who *are* listening of
+ * fresh prices — and it keeps sending traffic to retailers on nobody's behalf,
+ * which is exactly what gets the worker's IP blocked (see checker/cron.js).
  */
 export async function dueProducts(env, { now, intervalMs, limit }) {
   const result = await env.DB.prepare(
-    `SELECT * FROM products
-     WHERE blocked_until <= ? AND last_checked_at <= ?
-     ORDER BY last_checked_at ASC
+    `SELECT p.* FROM products p
+       JOIN devices d ON d.id = p.device_id
+     WHERE p.blocked_until <= ? AND p.last_checked_at <= ? AND d.last_seen_at > ?
+     ORDER BY p.last_checked_at ASC
      LIMIT ?`
   )
-    .bind(now, now - intervalMs, limit)
+    .bind(now, now - intervalMs, now - DORMANT_DEVICE_MS, limit)
     .all();
   return result.results || [];
 }
