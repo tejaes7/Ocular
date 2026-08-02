@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import StoresBar from './components/StoresBar';
@@ -10,35 +10,26 @@ import Footer from './components/Footer';
 import NotificationToast from './components/NotificationToast';
 import ScrollPriceGraph from './components/ScrollPriceGraph';
 import VideoBackground from './components/VideoBackground';
-import WishlistDashboard from './components/WishlistDashboard';
-import { initialProducts } from './data/mockProducts';
+import ClickBurst from './components/ClickBurst';
 
 export default function App() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // The dashboard below is an interactive **demo** — it is how a visitor sees
-  // what tracking looks like before installing anything, which is why it ships
-  // with sample products and a "simulate a drop" button.
-  //
-  // It is not, and must not become, a view of the visitor's real watchlist.
-  // Real prices live in extension storage on the device; the website has no
-  // access to them and no account is linked to price data by design (see the
-  // identity section in docs/API.md). Making this live needs the extension to
-  // hand its local data to the page, which does not exist yet.
-  const [demoProducts, setDemoProducts] = useState(initialProducts);
-
-  const triggerToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4500);
+  const handleAddProductFromUrl = () => {
+    setToastMessage('Product link parsed! Added to Ocular price tracker');
+    setTimeout(() => setToastMessage(null), 4500);
   };
 
-  const handleAddProductFromUrl = (_url) => {
-    triggerToast("Product link parsed! Added to Ocular price tracker");
-  };
+  // `user-drag: none` covers images and links, but dragging an already-selected
+  // run of text still starts a native drag-and-drop, and the OS takes the cursor
+  // for the duration. Nothing on the page is meant to be draggable, so cancel it.
+  useEffect(() => {
+    const cancelDrag = (event) => event.preventDefault();
+    document.addEventListener('dragstart', cancelDrag);
+    return () => document.removeEventListener('dragstart', cancelDrag);
+  }, []);
 
   // Google sign-in creates the account or finds it, so there is nothing for the
   // caller to choose here. Navbar used to pass 'login' or 'register'.
@@ -50,25 +41,20 @@ export default function App() {
           public/background.mp4 exists. */}
       <VideoBackground />
 
+      {/* Tech grid overlay. Fixed and masked, so it sits above the video plate
+          but below every section — depth without competing with the copy. */}
+      <div className="tech-grid pointer-events-none fixed inset-0 z-0" aria-hidden="true" />
+
       {/* Scroll-following Guidance Curve Beam */}
       <ScrollPriceGraph />
 
       <Navbar onOpenAuth={handleOpenAuth} />
 
-      <Hero 
-        onAddProductFromUrl={handleAddProductFromUrl}
-        onOpenDownload={() => setIsDownloadOpen(true)}
-      />
+      <Hero onAddProductFromUrl={handleAddProductFromUrl} />
 
       <StoresBar />
 
       <HowItWorks onOpenDownload={() => setIsDownloadOpen(true)} />
-
-      <WishlistDashboard
-        products={demoProducts}
-        setProducts={setDemoProducts}
-        onTriggerAlertToast={triggerToast}
-      />
 
       <VideoTutorial onOpenDownload={() => setIsDownloadOpen(true)} />
 
@@ -85,6 +71,9 @@ export default function App() {
         toastMessage={toastMessage}
         onClose={() => setToastMessage(null)}
       />
+
+      {/* Sits above everything so the pulse is never clipped by a section */}
+      <ClickBurst />
     </div>
   );
 }

@@ -63,25 +63,120 @@
   --cursor-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cpath d='M2 1.2 L2 13 L4.9 10.3 L6.9 14.6 L8.8 13.7 L6.9 9.6 L10.8 9.4 Z' fill='%2314283f' stroke='%23ffffff' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E") 2 1;
 }
 
-body {
+/* Applied to every element, not just body. `cursor` inherits, but any element
+   the UA stylesheet gives its own value to — links, buttons, text fields,
+   disabled controls, resizers — breaks that inheritance and snaps back to a
+   system cursor. The universal selector closes those gaps in one rule, and it
+   also covers the case where dragging a selection across mixed content flips
+   between the custom arrow and the I-beam mid-drag. */
+*,
+*::before,
+*::after {
   cursor: var(--cursor-arrow), auto;
 }
 
-/* Links and buttons would otherwise revert to the system hand, since the UA
-   stylesheet and Tailwind's `cursor-pointer` both set cursor explicitly. */
+/* Interactive elements keep `pointer` as the fallback keyword, so if the PNG
+   ever fails to load the affordance degrades to a hand rather than an arrow. */
 a,
 button,
 summary,
+label,
 [role='button'],
 .cursor-pointer {
   cursor: var(--cursor-arrow), pointer;
 }
 
-/* Text fields keep the I-beam: it's the only cue that you can place a caret. */
+/* Highlighting keeps the brand colour rather than the OS blue, so a drag-select
+   doesn't visually clash with the custom pointer. */
+::selection {
+  background: rgba(123, 185, 242, 0.32);
+  color: var(--text-main);
+}
+
+/* Native drag is the other way the cursor escapes CSS. Press on an image, a link,
+   or an already-highlighted run of text and the browser starts a drag-and-drop
+   operation — at which point the OS owns the pointer and no `cursor` rule
+   applies. Turning off dragging on these keeps the custom arrow throughout, and
+   it also stops image ghosts fighting the stores rail's drag-to-scroll. */
+img,
+a,
+svg,
+canvas,
+video {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* Click pulse. Pure CSS so a burst costs one animated node and then removes
+   itself — no requestAnimationFrame loop is left running between clicks. */
+.ocular-burst {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.ocular-burst-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 2px solid var(--primary-accent);
+  border-radius: 9999px;
+  animation: ocular-burst-ring 460ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ocular-burst i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 2px;
+  height: 7px;
+  margin: -1px 0 0 -1px;
+  border-radius: 2px;
+  background: var(--primary-accent);
+  animation: ocular-burst-spoke 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes ocular-burst-ring {
+  from { transform: scale(0.3); opacity: 0.55; }
+  to { transform: scale(1.35); opacity: 0; }
+}
+
+@keyframes ocular-burst-spoke {
+  from { transform: rotate(var(--angle)) translateY(-7px) scaleY(0.5); opacity: 0.75; }
+  to { transform: rotate(var(--angle)) translateY(-19px) scaleY(1); opacity: 0; }
+}
+
+/* Text fields previously kept the I-beam. That was the single biggest source of
+   the cursor "resetting" as you moved across the page, so the custom arrow wins
+   here too — the trade is that the caret affordance is gone from the URL field. */
 input,
 textarea,
 [contenteditable] {
-  cursor: text;
+  cursor: var(--cursor-arrow), text;
+}
+
+/* Disabled controls get `not-allowed` from the UA stylesheet. Keep the custom
+   arrow, but preserve the meaning through the fallback keyword. */
+[disabled],
+[aria-disabled='true'] {
+  cursor: var(--cursor-arrow), not-allowed;
+}
+
+/* Tech grid overlay.
+   Two repeating-linear-gradients rather than an SVG or an image: it costs one
+   painted layer, no network request, and scales to any viewport. The radial mask
+   fades it out toward the edges and behind the centre column so it reads as
+   depth rather than graph paper competing with the copy. */
+.tech-grid {
+  background-image:
+    repeating-linear-gradient(to right, rgba(20, 40, 63, 0.055) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(to bottom, rgba(20, 40, 63, 0.055) 0 1px, transparent 1px 64px);
+  -webkit-mask-image: radial-gradient(ellipse 85% 65% at 50% 40%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 85% 65% at 50% 40%, #000 35%, transparent 100%);
 }
 
 .theme-bg-main { background-color: var(--bg-main); }
@@ -129,8 +224,25 @@ textarea,
   backface-visibility: hidden;
 }
 
-/* Deliberately no :hover pause — the marquee keeps running even when the pointer
-   is over it. Pausing made the strip feel like it had snagged on the cursor. */
+/* Pause on hover, so the strip holds still while you read a card or drag it.
+   Scoped to the rail rather than the track: hovering a gap between cards should
+   pause too, and the track is only as tall as its content. */
+.stores-rail:hover .animate-marquee,
+.stores-rail:focus-within .animate-marquee {
+  animation-play-state: paused;
+}
+
+/* The rail scrolls manually (wheel, swipe, pointer-drag) but a visible scrollbar
+   under a decorative marquee is noise. Content stays reachable by keyboard via
+   the cards' own focus ring. */
+.stores-rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+.stores-rail::-webkit-scrollbar {
+  display: none;
+}
 
 /* Respect the OS "reduce motion" setting: no marquee, no scroll-linked easing,
    no long transitions. Also disables the `scroll-smooth` class on <html>. */
