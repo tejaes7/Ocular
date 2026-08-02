@@ -16,7 +16,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { acceptableServerPoints } from '../src/lib/sync.js';
+import { acceptableServerPoints, nextCursorFrom } from '../src/lib/sync.js';
 
 const DAY = 86_400_000;
 
@@ -103,5 +103,44 @@ test('a non-array payload is handled rather than thrown on', () => {
     const { accepted, rejected } = acceptableServerPoints(payload, steadyStats);
     assert.equal(accepted.length, 0);
     assert.equal(rejected, 0);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The sync cursor
+//
+// The bug: the client advanced `lastSyncAt` to the server's clock on every
+// response. The server caps a page at 5000 price rows, so on a truncated page
+// everything past the cap was inside a window the client had already marked as
+// read, and it was never asked for again. Those rows were lost to the device
+// permanently — no error, no retry, just history that stopped.
+// ---------------------------------------------------------------------------
+
+test('a truncated page resumes from the last row the server sent', () => {
+  const cursor = nextCursorFrom({ nextSince: 1_700_000_000, serverTime: 1_900_000_000 });
+
+  assert.equal(cursor, 1_700_000_000, 'must follow the server cursor, not the clock');
+  assert.notEqual(cursor, 1_900_000_000, 'advancing to serverTime is the bug being fixed');
+});
+
+test('a complete page advances to the server clock', () => {
+  const now = 1_900_000_000;
+  assert.equal(nextCursorFrom({ nextSince: now, serverTime: now, truncated: false }), now);
+});
+
+test('cursor of zero is honoured rather than treated as absent', () => {
+  // A falsy-but-valid cursor: `payload.nextSince || serverTime` would skip it
+  // and jump the client to now, re-opening the exact gap this closes.
+  assert.equal(nextCursorFrom({ nextSince: 0, serverTime: 1_900_000_000 }), 0);
+});
+
+test('a worker that predates nextSince still syncs', () => {
+  assert.equal(nextCursorFrom({ serverTime: 1_900_000_000 }), 1_900_000_000);
+});
+
+test('a response carrying no usable timestamp falls back to the local clock', () => {
+  const now = 1_234_567;
+  for (const payload of [null, undefined, {}, { nextSince: 'soon', serverTime: null }]) {
+    assert.equal(nextCursorFrom(payload, now), now);
   }
 });

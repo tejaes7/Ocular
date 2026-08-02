@@ -19,7 +19,7 @@ import { evaluateAlert } from '@ocular/shared/alerts';
 import { downloadBackup } from './lib/backup.js';
 import { isPlausibleReading, summarizeHistory } from '@ocular/shared/history';
 import { canonicalizeUrl, siteLabel } from '@ocular/shared/sites';
-import { runSync, syncConfigured } from './lib/sync.js';
+import { pairUrl as buildPairUrl, runSync, syncConfigured, unlinkDevice } from './lib/sync.js';
 import {
   appendPricePoint,
   getHistory,
@@ -104,8 +104,57 @@ async function syncIfEnabled() {
   if (!syncConfigured(settings)) return { ok: false, error: 'Sync is off.' };
 
   const result = await runSync(settings);
-  if (!result.ok) console.warn('Ocular: sync failed —', result.error);
+  if (!result.ok) {
+    console.warn('Ocular: sync failed —', result.error);
+    return result;
+  }
+
+  await applyCatchUp(result.catchUp || []);
   return result;
+}
+
+/**
+ * Land what the worker saw while Chrome was shut.
+ *
+ * This is the step that was missing, and without it the server was pointless
+ * from the user's side: prices merged into history, but `lastPrice` was never
+ * updated — so the popup, badge and panel kept showing the stale number — and
+ * no alert was ever raised, so an overnight price drop arrived as silence.
+ *
+ * On letting a server reading raise a notification. The rule elsewhere is that
+ * guessed readings never wake the user, and these carry no provenance at all,
+ * which looks like the same case. It isn't: the worker extracts from JSON-LD and
+ * meta tags only (it has no DOM, so the heuristic rung cannot run there), and
+ * acceptableServerPoints has already held every one of these to the 90-day
+ * median band — a bar structured browser readings are allowed to skip. A server
+ * point is structured *and* median-gated, which is strictly more scrutiny than
+ * the readings that already notify.
+ */
+async function applyCatchUp(events) {
+  if (!events.length) return;
+
+  for (const event of events) {
+    const product = await getProduct(event.productId);
+    if (!product) continue;
+
+    const updated = await upsertProduct({
+      ...product,
+      lastPrice: event.price,
+      lastInStock: event.inStock,
+      lastVia: 'server',
+      lastServerAt: event.ts,
+      // `lastCheckedAt` deliberately untouched. It paces the local sweep, and
+      // advancing it here would let a steadily-checking worker crowd out the
+      // browser's own checks — quietly demoting the source of truth to the side
+      // that gets handed regional prices and anti-bot placeholders.
+    });
+
+    if (event.previousPrice != null && event.price < event.previousPrice) {
+      await maybeNotify(updated, event.previousPrice, event.price, { source: 'server' });
+    }
+  }
+
+  await refreshBadge();
 }
 
 // ---------------------------------------------------------------------------
@@ -449,6 +498,23 @@ const handlers = {
 
   async syncNow() {
     return syncIfEnabled();
+  },
+
+  /**
+   * Where to send someone to turn on email alerts.
+   *
+   * The extension cannot create the link itself: `/link` needs a Firebase token
+   * alongside the device id, and there is no sign-in here by design. The website
+   * is already signed in, so it finishes the job.
+   */
+  async pairUrl() {
+    const url = await buildPairUrl(await getSettings());
+    return url ? { ok: true, url } : { ok: false, error: 'No Ocular site is configured.' };
+  },
+
+  /** Turning alerts off needs only the device token — see lib/sync.js. */
+  async unlinkEmailAlerts() {
+    return unlinkDevice(await getSettings());
   },
 
   async settingsChanged() {

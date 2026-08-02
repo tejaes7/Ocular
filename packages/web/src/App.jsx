@@ -11,8 +11,20 @@ import NotificationToast from './components/NotificationToast';
 import ScrollPriceGraph from './components/ScrollPriceGraph';
 import VideoBackground from './components/VideoBackground';
 import ClickBurst from './components/ClickBurst';
+import PairDevice, { pairDeviceIdFromLocation } from './components/PairDevice';
 
 export default function App() {
+  // `/?pair=<device-uuid>` — the extension sends people here to turn on email
+  // alerts. Read once at mount: the extension opens a fresh tab, so this never
+  // changes underneath us, and the pairing page clears the parameter itself
+  // once it has been used.
+  const [pairDeviceId] = useState(pairDeviceIdFromLocation);
+  if (pairDeviceId) return <PairDevice deviceId={pairDeviceId} />;
+
+  return <LandingPage />;
+}
+
+function LandingPage() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);

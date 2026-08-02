@@ -28,7 +28,14 @@
     "https://www.reliancedigital.in/*",
     "https://www.nykaa.com/*",
     "https://www.tatacliq.com/*",
-    "https://www.meesho.com/*"
+    "https://www.meesho.com/*",
+    "https://www.snapdeal.com/*",
+    "https://www.bigbasket.com/*",
+    "https://www.jiomart.com/*",
+    "https://www.nike.com/*",
+    "https://www.adidas.co.in/*",
+    "https://in.puma.com/*",
+    "https://www.decathlon.in/*"
   ],
 
   "optional_host_permissions": ["*://*/*"],
@@ -69,7 +76,14 @@
         "https://www.reliancedigital.in/*",
         "https://www.nykaa.com/*",
         "https://www.tatacliq.com/*",
-        "https://www.meesho.com/*"
+        "https://www.meesho.com/*",
+        "https://www.snapdeal.com/*",
+        "https://www.bigbasket.com/*",
+        "https://www.jiomart.com/*",
+        "https://www.nike.com/*",
+        "https://www.adidas.co.in/*",
+        "https://in.puma.com/*",
+        "https://www.decathlon.in/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],

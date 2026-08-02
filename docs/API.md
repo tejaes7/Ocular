@@ -6,32 +6,42 @@ change, and link the PR on the other side.
 
 ---
 
-## Identity: two of them, never joined
+## Identity: two of them, joined in one place
 
 Ocular carries two separate identities. Which one a request uses is decided by
-the route, and **nothing may correlate them**.
+the route.
 
 | | Device UUID | Account (optional) |
 |---|---|---|
 | What it is | A v4 UUID the extension generates locally on first run | A Firebase uid, from signing in with Google |
 | Used by | `POST /sync` | `GET /me` |
-| Purpose | Carries one browser's watchlist so the worker knows what to check | Lets one person's own devices share a watchlist |
+| Purpose | Carries one browser's watchlist so the worker knows what to check | Lets one person's own devices share a watchlist, and receives email alerts |
 | Required? | Yes, for sync | **No.** Everything works signed out |
 | Identifies a person? | No | Yes — it has an email address |
 
-**The invariant: no row that carries a price may carry a user id.** Price data is
-keyed to the anonymous device UUID and to nothing else. An account may point at
-its devices; a device may never point back at a price row through an account.
+**No row that carries a price carries a user id.** That part still holds: the
+`prices` table is keyed to the device UUID and nothing else.
 
-This is not a stylistic preference. The training dataset described in
-`packages/ai/WORKLOG.md` is only defensible because the price series in it cannot
-be attributed to a person. Adding `user_id` to a price table is the single change
-that would break that, and it needs a decision from the whole team rather than a
-migration — see the header of `packages/backend/migrations/0002_users.sql`.
+**But the two are now joinable.** `POST /link` writes `devices.user_id`, so
+`prices → device → user` is a two-hop join for anyone with database access.
+Decided on 2026-08-02 to make email price alerts possible, because a drop found
+while the browser is closed cannot reach the user through any channel that does
+not know who they are. The decision and its cost are recorded in
+`packages/backend/migrations/0003_email_alerts.sql`.
 
-Signing in buys exactly one thing today: your watchlist follows you between your
-own browsers. It does not unlock features, it is not required, and it does not
-change what is stored about a product.
+What keeps it narrow:
+
+- The link is **opt-in** — a device that never calls `/link` is exactly as
+  anonymous as before, and signed-out remains the default.
+- It is **reversible** — `{"unlink": true}` clears it.
+- It requires **both credentials in one call**, so neither token alone can
+  create it.
+
+**Known consequence, unresolved.** The training dataset in
+`packages/ai/WORKLOG.md` was defensible precisely because its price series could
+not be attributed to a person. For linked devices that is no longer true, so the
+collection pipeline needs an explicit decision: either exclude linked devices
+from the dataset, or strip the link at export. Nothing enforces this yet.
 
 ---
 
@@ -98,6 +108,7 @@ the worker up and every other route 500ing. Use this as the uptime probe.
 // Request
 {
   "since": 1768900000000,        // only return prices newer than this
+  "complete": true,              // "products" is my ENTIRE watchlist — see below
   "products": [
     {
       "id": "p1a2b3",            // stable hash of canonicalUrl
@@ -114,8 +125,11 @@ the worker up and every other route 500ing. Use this as the uptime probe.
 // Response 200
 {
   "ok": true,
-  "serverTime": 1769000000000,
+  "serverTime": 1769000000000,   // the server's clock — for display, NOT for syncing
+  "nextSince": 1769000000000,    // send this back as "since" next time
+  "truncated": false,            // true = more price rows are waiting; sync again
   "tracking": 1,
+  "linked": false,               // is this device attached to an account? (see /link)
   "prices": {
     "p1a2b3": [
       { "ts": 1768950000000, "price": 4499, "inStock": true, "source": "server" }
@@ -124,17 +138,39 @@ the worker up and every other route 500ing. Use this as the uptime probe.
 }
 ```
 
-| Status | Meaning |
-|---|---|
-| 400 | Body was not JSON |
-| 401 | Missing or malformed device token |
-| 404 | Unknown route, or `/sync` called with the wrong method |
+`linked` is **reported here, never changed here.** Creating the join stays
+confined to `/link`, so `/sync` remains a route that sees only a device.
+
+| Status | Code | Meaning |
+|---|---|---|
+| 400 | `BAD_REQUEST` | Body was not JSON |
+| 401 | `UNAUTHORIZED` | Missing or malformed device token |
+| 404 | `NOT_FOUND` | Unknown route, or `/sync` called with the wrong method |
+| 413 | `TOO_MANY_PRODUCTS` | Watchlist is over the 200-product cap. **Nothing was written or deleted.** |
+| 429 | `RATE_LIMITED` | Over budget. Honour the `Retry-After` header. |
 
 ### Semantics that are easy to get wrong
 
-- **The watchlist is replaced, not merged.** Anything the device stops sending
-  stops being checked. Otherwise removing a product in the browser would leave
-  the server hammering a retailer for it forever.
+- **`complete` is what licenses deletion.** The watchlist is replaced, not
+  merged: anything the device stops sending stops being checked, or removing a
+  product in the browser would leave the server hammering a retailer for it
+  forever. But that reconciliation is only sound when the payload really is the
+  whole list, so the server does it **only when `complete: true` is present.**
+  Without the flag it writes what you sent and deletes nothing — the safe
+  reading of a partial payload.
+
+- **Over the cap is an error, not a truncation.** Sending 250 products used to
+  save the first 200 and delete the other 50 *along with their price history*,
+  because the reconcile pass could not tell "the user removed this" from "the
+  server trimmed this". It now refuses the whole request and changes nothing.
+
+- **Page prices with `nextSince`, never with `serverTime`.** A response carries
+  at most 5000 price rows. When `truncated` is true, `nextSince` is the timestamp
+  of the last row actually sent, and sending it back resumes exactly there.
+  Advancing to `serverTime` instead — which the client used to do
+  unconditionally — marks the un-sent rows as already read, and they are never
+  requested again. Keep calling `/sync` while `truncated` is true to drain the
+  backlog.
 - **Never send prices upward.** The extension pushes only what the server needs
   to fetch a page. Price history stays on the device.
 - **Server prices are advisory.** The extension merges them via `mergeHistory()`
@@ -192,8 +228,69 @@ Things that are load-bearing here:
   would fail on the unique uid.
 - **Never returns `{ ok: true }` with a null user.** A write that did not produce
   a row is a 500. Clients may rely on `user.uid` existing whenever `ok` is true.
-- **This route touches no price data**, and adding a field here that links it to
-  any is the change the identity section forbids.
+- **This route touches no price data.** `/link` is where the two identities meet;
+  keep that in one place rather than spreading it across routes.
+
+### `POST /link`
+
+Attaches a device's watchlist to an account so the worker can email price drops
+found while the browser is closed. **This is the only route that joins the two
+identities** — read the identity section above before changing it.
+
+**Creating** the link needs both credentials at once. **Removing** it needs only
+the device.
+
+```
+// Link, or unlink from the website
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+
+{ "deviceId": "3f0c1e2a-...", "unlink": false }
+```
+
+```
+// Unlink from the extension, which holds no Firebase token
+Authorization: Bearer <device-uuid>
+Content-Type: application/json
+
+{ "unlink": true }
+```
+
+```jsonc
+// Response 200
+{ "ok": true, "linked": true, "email": "shopper@example.com" }
+```
+
+The two auth modes cannot be confused: the device bearer must be a bare UUID,
+and a Firebase ID token is never that shape.
+
+| Code | Status | Meaning |
+|---|---|---|
+| `MISSING_AUTH_HEADER` | 401 | No `Authorization` header |
+| `MALFORMED_AUTH_HEADER` | 401 | Present, but not `Bearer <token>` |
+| `INVALID_TOKEN` | 401 | Firebase token failed verification |
+| `BAD_REQUEST` | 400 | Body was not JSON, or `deviceId` was not a UUID |
+| `NO_EMAIL` | 400 | The account has no email address to send alerts to |
+| `PERSIST_FAILED` | 500 | The link could not be written |
+
+Things that are load-bearing here:
+
+- **Both credentials are required to create the link.** A device token alone
+  cannot attach an account, and an account token alone cannot claim a device.
+  Neither side can be joined on the user's behalf by a caller holding only one.
+- **Removing it needs only the device token.** Detaching is a de-escalation — it
+  can never create a join and discloses nothing — so requiring account access to
+  undo it would strand anyone locked out of their Google account with a link
+  they cannot remove. The privacy page promises this can be turned off, which
+  means it has to hold in that case too.
+- **Accounts with no email are rejected rather than linked.** Phone and anonymous
+  sign-in mint valid tokens with no email claim; linking one produces a link that
+  can never deliver anything.
+- **The extension never signs in.** It opens `<site>/?pair=<deviceId>` and the
+  website — already authenticated — makes this call. That avoids an OAuth client
+  id, the `identity` permission, and working around Firebase's JS SDK not
+  functioning inside an MV3 service worker, to duplicate auth the site already
+  has. `/sync` reports `linked` back so the extension can show the real state.
 
 ---
 

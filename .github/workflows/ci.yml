@@ -45,6 +45,13 @@ jobs:
           fi
           echo "bundles look self-contained"
 
+      # The landing page was the one workspace CI never compiled: a broken import
+      # or a deleted component reached production and was found by a visitor, not
+      # by a build. It is also the workspace with the most hands in it, which is
+      # exactly the one that should be built on every PR.
+      - name: Build the web app
+        run: npm run build:web
+
       - name: Package
         run: npm run zip
 

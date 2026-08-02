@@ -159,11 +159,45 @@
 
         <div class="row">
           <div class="row__text">
+            <label for="sync-site">Site URL</label>
+            <p class="hint">Where to sign in for email alerts. Only needed if you self-host.</p>
+          </div>
+          <div class="control">
+            <input id="sync-site" class="field field--wide" type="url"
+                   placeholder="https://ocular.app" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="row__text">
             <label>Device ID</label>
-            <p class="hint">Generated locally. Anonymous, not linked to any account.</p>
+            <p class="hint" id="device-id-hint">Generated locally. Anonymous, not linked to any account.</p>
           </div>
           <code id="device-id" class="mono"></code>
         </div>
+      </section>
+
+      <!-- Email alerts --------------------------------------------------- -->
+      <section class="section">
+        <h2>Email price alerts <span class="label">optional</span></h2>
+        <p class="note">
+          A price drop found while Chrome is closed can only reach you by email. Turning
+          this on <strong>links this browser's watchlist to your account</strong>, so the
+          things you track stop being anonymous. It is reversible.
+        </p>
+
+        <div class="row">
+          <div class="row__text">
+            <label id="email-alerts-state">Email alerts are off</label>
+            <p class="hint" id="email-alerts-hint">
+              Requires background sync, and opens the Ocular site to sign in.
+            </p>
+          </div>
+          <div class="control">
+            <button id="email-alerts-toggle" class="btn">Turn on…</button>
+          </div>
+        </div>
+        <p id="email-alerts-status" class="status" role="status"></p>
 
         <div class="actions">
           <button id="sync-now" class="btn">Sync now</button>

@@ -157,6 +157,159 @@ export const SITE_PACKS = [
       return url.pathname.includes('/p/');
     },
   },
+
+  // ---------------------------------------------------------------------------
+  // Added to close the gap between what the landing page advertises and what the
+  // extension actually recognises. The site listed a store, the extension had no
+  // pack and no manifest match for it, so the button never appeared and tracking
+  // silently did nothing there.
+  //
+  // All seven lead with JSON-LD, which is why they were cheap to add and why
+  // they also work server-side in the worker (htmlscan.js reads the same
+  // structured data). The selectors below are the usual fallback and the usual
+  // caveat applies — a broken one is low severity, because extract.js only
+  // reaches for them when the structured data is missing.
+  // ---------------------------------------------------------------------------
+
+  {
+    id: 'snapdeal',
+    label: 'Snapdeal',
+    match: /(^|\.)snapdeal\.com$/i,
+    price: ['span.payBlkBig', '.pdp-final-price span', '.payBlkBig'],
+    listPrice: ['span.pdpCutPrice', '.pdpCutPrice'],
+    title: ['h1[itemprop="name"]', '.pdp-e-i-head', 'h1'],
+    image: ['.cloudzoom', '#bx-slider-left-image-panel img'],
+    outOfStock: ['.sold-out-err', '.soldOutP'],
+    canonical(url) {
+      // /product/<slug>/<numeric-id> — the slug is decorative and changes with
+      // merchandising copy, so the id is what makes two links the same product.
+      const m = url.pathname.match(/\/product\/[^/]+\/(\d+)/);
+      return m ? `${url.origin}/product/x/${m[1]}` : null;
+    },
+    isProductPage(url) {
+      return /\/product\/[^/]+\/\d+/.test(url.pathname);
+    },
+  },
+
+  {
+    id: 'bigbasket',
+    label: 'BigBasket',
+    match: /(^|\.)bigbasket\.com$/i,
+    price: ['span[class*="Pricing___"]', 'td.discnt-price span', '.discnt-price'],
+    listPrice: ['span[class*="StrikedPrice"]', 'td.mrp-price span'],
+    title: ['h1[class*="Description___"]', 'h1'],
+    image: ['div[class*="ProductImage"] img', '.b-view img'],
+    outOfStock: ['[class*="OutOfStock"]'],
+    canonical(url) {
+      // /pd/<id>/<slug>/
+      const m = url.pathname.match(/\/pd\/(\d+)/);
+      return m ? `${url.origin}/pd/${m[1]}` : null;
+    },
+    isProductPage(url) {
+      return /\/pd\/\d+/.test(url.pathname);
+    },
+  },
+
+  {
+    id: 'jiomart',
+    label: 'JioMart',
+    match: /(^|\.)jiomart\.com$/i,
+    price: ['#final_price', '.final-price', 'span.jm-heading-xxs'],
+    listPrice: ['#price_section .line-through', '.mrp-price'],
+    title: ['#pdp_product_name', 'h1.product-title', 'h1'],
+    image: ['.product-image img', '#img_0'],
+    outOfStock: ['.out-of-stock', '#outOfStock'],
+    canonical(url) {
+      // /p/<category>/<slug>/<numeric-id>
+      const m = url.pathname.match(/\/p\/.*?\/(\d+)\/?$/);
+      return m ? `${url.origin}/p/x/x/${m[1]}` : null;
+    },
+    isProductPage(url) {
+      return /\/p\/.*\/\d+\/?$/.test(url.pathname);
+    },
+  },
+
+  {
+    id: 'nike',
+    label: 'Nike',
+    match: /(^|\.)nike\.com$/i,
+    price: [
+      '[data-testid="currentPrice-container"]',
+      '#price-container [data-testid="currentPrice-container"]',
+      '.product-price.is--current-price',
+      '.product-price',
+    ],
+    listPrice: ['[data-testid="initialPrice-container"]', '.product-price.is--striked-out'],
+    title: ['#pdp_product_title', 'h1#pdp_product_title', 'h1'],
+    image: ['[data-testid="HeroImg"] img', '.css-viwop1 img'],
+    outOfStock: ['.sold-out', '[data-testid="oos-message"]'],
+    canonical(url) {
+      // /t/<slug>/<style-colour>. The style code is the identity; everything
+      // before it is SEO text that Nike rewrites freely.
+      const m = url.pathname.match(/\/t\/[^/]+\/([A-Z0-9-]+)\/?$/i);
+      return m ? `${url.origin}${url.pathname.replace(/\/$/, '')}` : null;
+    },
+    isProductPage(url) {
+      return /\/t\/[^/]+\/[A-Z0-9-]+/i.test(url.pathname);
+    },
+  },
+
+  {
+    id: 'adidas',
+    label: 'Adidas',
+    match: /(^|\.)adidas\.(co\.in|com|co\.uk|de)$/i,
+    price: ['.gl-price-item--sale', '.gl-price-item', '[data-testid="main-price"]'],
+    listPrice: ['.gl-price-item--crossed', '[data-testid="original-price"]'],
+    title: ['h1[data-testid="product-title"]', '.product_title', 'h1'],
+    image: ['[data-testid="pdp-gallery-image"] img', '.view_item img'],
+    outOfStock: ['[data-testid="sold-out"]', '.gl-cta--disabled'],
+    canonical(url) {
+      // /<slug>/<SKU>.html — the SKU alone identifies the colourway.
+      const m = url.pathname.match(/\/([A-Z0-9]+)\.html$/i);
+      return m ? `${url.origin}/x/${m[1].toUpperCase()}.html` : null;
+    },
+    isProductPage(url) {
+      return /\/[A-Z0-9]+\.html$/i.test(url.pathname);
+    },
+  },
+
+  {
+    id: 'puma',
+    label: 'Puma',
+    match: /(^|\.)puma\.com$/i,
+    price: ['[data-test-id="price"]', '.price--current', 'span.price'],
+    listPrice: ['[data-test-id="price-original"]', '.price--original'],
+    title: ['[data-test-id="product-name"]', 'h1.product-name', 'h1'],
+    image: ['[data-test-id="pdp-gallery"] img', '.product-image img'],
+    outOfStock: ['[data-test-id="oos"]', '.out-of-stock'],
+    canonical(url) {
+      // /in/en/pd/<slug>/<id>
+      const m = url.pathname.match(/\/pd\/[^/]+\/(\d+)/);
+      return m ? `${url.origin}${url.pathname.replace(/\/$/, '')}` : null;
+    },
+    isProductPage(url) {
+      return /\/pd\/[^/]+\/\d+/.test(url.pathname);
+    },
+  },
+
+  {
+    id: 'decathlon',
+    label: 'Decathlon',
+    match: /(^|\.)decathlon\.(in|com)$/i,
+    price: ['.js-price-value', '[data-testid="price"]', '.prices__value', '.price'],
+    listPrice: ['.prices__crossed', '[data-testid="strikethrough-price"]'],
+    title: ['h1.title', '[data-testid="product-title"]', 'h1'],
+    image: ['.product-gallery img', '[data-testid="gallery"] img'],
+    outOfStock: ['.js-unavailable', '[data-testid="out-of-stock"]'],
+    canonical(url) {
+      // /p/<slug>/_/R-p-<id>
+      const m = url.pathname.match(/\/R-p-(\d+)/);
+      return m ? `${url.origin}/p/x/_/R-p-${m[1]}` : null;
+    },
+    isProductPage(url) {
+      return url.pathname.includes('/p/');
+    },
+  },
 ];
 
 /** Find the selector pack for a URL, or null for unsupported/unknown sites. */

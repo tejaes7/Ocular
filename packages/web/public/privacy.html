@@ -114,12 +114,13 @@
 
     <main>
       <h1>Privacy</h1>
-      <p class="updated">Last updated 1 August 2026</p>
+      <p class="updated">Last updated 2 August 2026</p>
 
       <p class="lede">
         Ocular does not use analytics and does not build a profile of you. The
-        prices you track are stored on your device. An account is optional, and
-        the things you track are never linked to it.
+        prices you track are stored on your device. An account is optional — and
+        if you turn on email price alerts, your watchlist becomes linked to it.
+        That link is described in full below, and you can undo it.
       </p>
 
       <h2>What stays on your device</h2>
@@ -137,18 +138,23 @@
         send those pages anywhere else.
       </p>
 
-      <h2>Optional background sync</h2>
+      <h2>Background sync</h2>
       <p>
-        Background sync is <strong>off by default</strong>. If you turn it on and
-        supply your own server address, Ocular sends that server the URLs and
-        titles of the products you watch, plus a randomly generated device
-        identifier. No prices, settings, or browsing history beyond those product
-        URLs are sent.
+        Background sync is <strong>on by default</strong>, so that prices keep
+        being checked while your browser is closed. You can turn it off in the
+        extension's options at any time, and you can point it at your own server
+        instead of ours.
+      </p>
+      <p>
+        When it is on, Ocular sends that server the URLs and titles of the
+        products you watch, plus a randomly generated device identifier. No
+        prices, settings, or browsing history beyond those product URLs are sent.
       </p>
       <p>
         That device identifier is generated in your browser and is not derived
-        from anything about you or your machine. It is not linked to your name or
-        your email address — including when you have an account.
+        from anything about you or your machine. On its own it is not linked to
+        your name or your email address. It becomes linked to them only if you
+        turn on email price alerts — see below.
       </p>
 
       <h2>Optional account</h2>
@@ -160,17 +166,44 @@
         your password.
       </p>
       <p>
-        An account exists for exactly one purpose: so a watchlist can follow you
-        between your own browsers. It does not unlock features and it does not
-        change what is stored about a product.
+        An account does two things: it lets a watchlist follow you between your
+        own browsers, and it lets you switch on email price alerts. Nothing else
+        about what is stored for a product changes.
+      </p>
+
+      <h2>Email price alerts, and what linking costs</h2>
+      <p>
+        If a price drops while your browser is closed, no notification can reach
+        you inside the browser. Email can — but only by knowing which watchlist
+        is yours. Turning on email alerts therefore <strong>links your device's
+        watchlist to your account</strong>, and we want to be exact about what
+        that means rather than bury it.
       </p>
       <p>
-        <strong>Your account is never attached to price data.</strong> No record
-        of a price, a product, or anything you track carries your account
-        identifier. The two are kept apart deliberately, and separating them is a
-        rule the code enforces rather than a promise about intent — see
+        No price record carries your account identifier; prices are still stored
+        against the anonymous device identifier. But once linked, your account
+        and that device identifier can be connected, and therefore so can the
+        products and prices behind it. In plain terms: <strong>with email alerts
+        on, the things you track are no longer anonymous to us.</strong>
+      </p>
+      <p>
+        What limits it:
+      </p>
+      <ul>
+        <li>It is off unless you turn it on. Signed out, or signed in without
+          email alerts, nothing is linked.</li>
+        <li>It is reversible. Turning email alerts off unlinks the device, and
+          the watchlist goes back to being anonymous.</li>
+        <li>Linking requires both your sign-in and your device at the same time,
+          so it cannot be done on your behalf.</li>
+        <li>We use your address to send you price alerts about your own
+          watchlist, and for nothing else. We do not sell or share it.</li>
+      </ul>
+      <p>
+        The mechanism is public — see
         <a href="https://github.com/tejaes7/Ocular/blob/main/docs/API.md">the API
-        contract</a>, which is public.
+        contract</a>, which documents the single endpoint that creates the link
+        and what it writes.
       </p>
 
       <h2>What we do not do</h2>

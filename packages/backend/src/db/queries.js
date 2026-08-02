@@ -47,18 +47,37 @@ export async function listProductIds(env, deviceId) {
   return (result.results || []).map((row) => row.id);
 }
 
+/**
+ * How many ids go into one `IN (...)`.
+ *
+ * D1 inherits SQLite's bind-parameter ceiling, and a single statement that
+ * exceeds it fails outright rather than degrading — so a device clearing its
+ * whole watchlist was the case most likely to break. 50 leaves a wide margin
+ * under any plausible limit, and the chunks run in one `batch()`, so the cost
+ * of a small chunk size is a longer statement list, not more round trips.
+ */
+const DELETE_CHUNK = 50;
+
 export async function deleteProducts(env, deviceId, ids) {
-  const placeholders = ids.map(() => '?').join(',');
-  return env.DB.batch([
-    env.DB.prepare(`DELETE FROM products WHERE device_id = ? AND id IN (${placeholders})`).bind(
-      deviceId,
-      ...ids
-    ),
-    env.DB.prepare(`DELETE FROM prices WHERE device_id = ? AND product_id IN (${placeholders})`).bind(
-      deviceId,
-      ...ids
-    ),
-  ]);
+  const statements = [];
+
+  for (let i = 0; i < ids.length; i += DELETE_CHUNK) {
+    const chunk = ids.slice(i, i + DELETE_CHUNK);
+    const placeholders = chunk.map(() => '?').join(',');
+
+    statements.push(
+      env.DB.prepare(`DELETE FROM products WHERE device_id = ? AND id IN (${placeholders})`).bind(
+        deviceId,
+        ...chunk
+      ),
+      env.DB.prepare(
+        `DELETE FROM prices WHERE device_id = ? AND product_id IN (${placeholders})`
+      ).bind(deviceId, ...chunk)
+    );
+  }
+
+  if (!statements.length) return [];
+  return env.DB.batch(statements);
 }
 
 export async function pricesSince(env, deviceId, since, limit) {
@@ -72,19 +91,35 @@ export async function pricesSince(env, deviceId, since, limit) {
 }
 
 /**
+ * A device that has not synced in this long stops having its watchlist checked.
+ *
+ * Nothing is deleted and nothing needs cleaning up: `touchDevice` runs on every
+ * sync, so a device that comes back is picked up again on its very next tick.
+ */
+const DORMANT_DEVICE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
  * Products eligible for a cron check.
  *
  * Ordering by `last_checked_at` gives round-robin fairness for free — the
  * longest-neglected product is always first in line. Backed by idx_products_due.
+ *
+ * The join skips dormant devices. Without it, someone who installs the
+ * extension, syncs once and uninstalls leaves their watchlist being fetched
+ * forever. That costs twice: it burns the 40-checks-per-cron budget on a device
+ * that will never read the result — starving the users who *are* listening of
+ * fresh prices — and it keeps sending traffic to retailers on nobody's behalf,
+ * which is exactly what gets the worker's IP blocked (see checker/cron.js).
  */
 export async function dueProducts(env, { now, intervalMs, limit }) {
   const result = await env.DB.prepare(
-    `SELECT * FROM products
-     WHERE blocked_until <= ? AND last_checked_at <= ?
-     ORDER BY last_checked_at ASC
+    `SELECT p.* FROM products p
+       JOIN devices d ON d.id = p.device_id
+     WHERE p.blocked_until <= ? AND p.last_checked_at <= ? AND d.last_seen_at > ?
+     ORDER BY p.last_checked_at ASC
      LIMIT ?`
   )
-    .bind(now, now - intervalMs, limit)
+    .bind(now, now - intervalMs, now - DORMANT_DEVICE_MS, limit)
     .all();
   return result.results || [];
 }
@@ -102,6 +137,86 @@ export async function recordSuccess(env, product, { now, price, inStock, title }
        WHERE device_id = ? AND id = ?`
     ).bind(now, price, title || null, product.device_id, product.id),
   ]);
+}
+
+// --- email alerts ----------------------------------------------------------
+
+/**
+ * Everything needed to decide and send one alert, in a single round trip.
+ *
+ * Returns null when the device has no account, which is the common case and not
+ * an error — a signed-out device simply gets no email, and the two-hop join
+ * added in 0003 never happens for it.
+ */
+export async function alertRecipientFor(env, product) {
+  return env.DB.prepare(
+    `SELECT u.email AS email, d.last_seen_at AS last_seen_at
+       FROM devices d
+       JOIN users u ON u.id = d.user_id
+      WHERE d.id = ? AND u.email IS NOT NULL`
+  )
+    .bind(product.device_id)
+    .first();
+}
+
+/** Server-observed price series for one product, oldest first. */
+export async function priceHistoryFor(env, product, limit = 500) {
+  const result = await env.DB.prepare(
+    `SELECT ts, price, in_stock FROM prices
+      WHERE device_id = ? AND product_id = ?
+      ORDER BY ts ASC LIMIT ?`
+  )
+    .bind(product.device_id, product.id, limit)
+    .all();
+
+  // summarizeHistory expects the extension's point shape.
+  return (result.results || []).map((row) => ({
+    ts: row.ts,
+    lastSeen: row.ts,
+    price: row.price,
+    inStock: row.in_stock === 1,
+    source: 'server',
+  }));
+}
+
+/**
+ * Written only after a send actually succeeds.
+ *
+ * Recording it before would mean a failed send still consumed the alert: the
+ * price is now "already alerted" and the cooldown has started, so the user
+ * hears nothing about this drop at all.
+ */
+export async function recordAlertSent(env, product, { now, price }) {
+  return env.DB.prepare(
+    `UPDATE products SET last_alert_price = ?, last_alert_at = ?
+      WHERE device_id = ? AND id = ?`
+  )
+    .bind(price, now, product.device_id, product.id)
+    .run();
+}
+
+/**
+ * Is this device attached to an account?
+ *
+ * Returned by /sync so the extension's options page can state the real link
+ * state rather than a local guess. The link is server-side, so a device that
+ * was unlinked from the website would otherwise keep showing "on" forever.
+ */
+export async function isDeviceLinked(env, deviceId) {
+  const row = await env.DB.prepare('SELECT user_id FROM devices WHERE id = ?')
+    .bind(deviceId)
+    .first();
+  return Boolean(row?.user_id);
+}
+
+/** Attach a device to an account, or detach it when userId is null. */
+export async function linkDeviceToUser(env, deviceId, userId, now) {
+  return env.DB.prepare(
+    `INSERT INTO devices (id, created_at, last_seen_at, user_id) VALUES (?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET user_id = excluded.user_id, last_seen_at = excluded.last_seen_at`
+  )
+    .bind(deviceId, now, now, userId)
+    .run();
 }
 
 export async function recordFailure(env, product, { now, failures, blockedUntil, reason }) {

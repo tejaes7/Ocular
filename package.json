@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "npm run build -w @ocular/extension",
+    "build:web": "npm run build -w @ocular/web",
     "dev": "npm run dev -w @ocular/extension",
     "zip": "npm run zip -w @ocular/extension",
     "test": "npm run test --workspaces --if-present",

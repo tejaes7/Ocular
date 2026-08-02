@@ -120,6 +120,48 @@ fill gaps, via `mergeHistory()`.
 - [x] First-run onboarding — including the "only while Chrome is open" caveat
 - [x] Accessibility: focus rings, `aria-label`s, `role="status"`, `prefers-reduced-motion`
 
+## Phase 6 — Closing the "my laptop was closed" gap ✅ (2026-08-02)
+
+The complaint this phase answers: tracking only worked while Chrome was open,
+and heavy retailers timed out when it was.
+
+**Reliability**
+
+- [x] Hidden-tab checks no longer gate on `tab.status === 'complete'`. One 25s
+      deadline was shared between waiting for load and polling for the price;
+      `complete` waits on every ad, beacon and analytics request, so the price
+      poll got under a second on exactly the sites that matter. Total unchanged,
+      so sweep duration doesn't regress.
+- [x] Content-script injection retries instead of latching after one attempt
+- [x] The in-page button appears on client-rendered stores. `evaluatePage()`
+      treated the first failed scrape as final, and nothing retried — the
+      observer only re-ran on a URL change, and a price arriving isn't one.
+- [x] Double-injection guard (manifest and checker can both inject one frame)
+
+**The server actually reaching the user**
+
+- [x] Server-found drops update `lastPrice` and raise an alert on next sync.
+      They were merging into history and stopping, so the worker produced no
+      visible outcome at all.
+- [x] Backfilled gap readings never alert; a long shutdown produces one alert
+      per product, not one per merged row
+- [x] Dormant devices (30d+) stop being checked, so the cron budget goes to
+      users who are still listening
+- [x] Email alerts for drops found while the browser is closed, gated on device
+      away 6h+, 5+ server readings, 10%+, once per price, 24h cooldown
+- [x] `POST /link` joins device to account; `/sync` reports `linked`, never sets it
+- [x] Pairing flow — the extension opens `<site>/?pair=<deviceId>` rather than
+      growing its own sign-in
+
+**Overlay**
+
+- [x] The Monitor button is draggable, persists position, and survives a
+      viewport change without stranding itself off-screen
+
+**Decision recorded:** split identity was overturned for this. See
+`migrations/0003_email_alerts.sql`, `docs/API.md`, and the privacy page — which
+now states plainly that with alerts on, a watchlist stops being anonymous.
+
 ---
 
 ## Verification
@@ -136,16 +178,74 @@ fill gaps, via `mergeHistory()`.
 | Whether retailers block us in practice | **Unverified** — needs live traffic |
 | Worker deploy, D1, cron | **Unverified** — needs a Cloudflare account |
 
-- [x] `test/` with `node --test`, 58 tests
+- [x] `test/` with `node --test` — **177 tests** (75 shared, 34 extension, 68 backend)
 - [x] `npm test` green
 - [x] Manifest reference validator in `build.mjs`
 
+Added in Phase 6 and worth knowing what they do *not* cover: the email decision
+logic, the link/unlink auth asymmetry, the catch-up decision and the overlay
+geometry are all unit-tested. **No test exercises a real email send, a real
+Firebase token, or a real D1.** Those need `wrangler dev` and a live browser.
+
 ---
 
-## Next
+## Next — start here in a new session
 
-1. **Load and exercise it** — the unverified rows above are the whole remaining risk.
-2. Percent/median alert rules exist in the data model *and* the popup UI; confirm
-   they fire correctly once histories are long enough to have a real median.
-3. Deploy the worker only if you track retailers beyond Amazon/Flipkart.
-4. Store submission: privacy policy, screenshots, $5 developer fee.
+**The backend is deployed (2026-08-03).** That was the blocker behind everything
+else, and it is gone.
+
+| | |
+|---|---|
+| Worker | `https://ocular.eeramallateja24bcd40.workers.dev` |
+| Site | `https://ocular-web-three.vercel.app` |
+| D1 | `ocular` — all three migrations applied to the remote |
+| Cron | every 30 min, live |
+
+Both constants in `packages/extension/src/lib/store.js` are filled in, so sync
+is **on by default** and the closed-browser path is no longer inert. The deploy
+ordering constraint that used to sit here is satisfied: the endpoint was set
+before the privacy page's "on by default" claim became true of a shipped build.
+
+Verified against the live deployment, not a stub: `/health` reports the D1
+connected, unauthenticated `/sync` is still 401, a product round-trips, a
+250-product payload returns 413 without writing or deleting anything, and the
+`complete` flag gates reconciliation in both directions. Test rows removed.
+
+**1. Email alerts — the only configuration still outstanding**
+
+- `wrangler secret put RESEND_API_KEY`
+- `wrangler secret put ALERT_FROM_EMAIL` — must be on a Resend-verified domain,
+  or every send fails with a 403 that reads like an auth error
+- `VITE_API_BASE` in the Vercel project, so the pairing page can reach the
+  worker. Without it `api.js` has no backend to call and `/?pair=` cannot work.
+
+Until all three are set, everything else runs: prices are checked while the
+browser is closed and pulled down on the next sync. Only the *email* is missing.
+
+**2. Load the rebuilt extension.** The endpoint is baked into the bundle at
+build time, so an already-installed unpacked copy keeps the old empty default
+until `npm run build` output is reloaded in Chrome.
+
+**3. Verify the loop end to end** — the one thing no test covers:
+
+track a product → wait for a server check → confirm a price row in D1 → pair a
+browser via the options page → force a drop → confirm the email arrives → press
+"Turn off" → confirm `devices.user_id` is null.
+
+The first half of this is now unblocked and worth doing before the Resend
+secrets exist: track a real product, wait for a cron tick, and check the
+`prices` table. That proves the checker against live retailers, which is the
+part no unit test can reach.
+
+**4. Then the older items**, unchanged: exercise hidden-tab checking in a live
+browser, confirm percent/median rules fire once histories have a real median,
+and store submission (screenshots, $5 fee).
+
+**Open decisions, not tasks:**
+
+- **The AI dataset.** Linked devices are no longer anonymous, and the export
+  path doesn't know it. Needs an exclusion or a link-strip before collection
+  starts in earnest — see the 2026-08-02 entry in `packages/ai/WORKLOG.md`.
+- **Review.** Phase 6 touched `packages/backend` and `packages/web` under
+  delegated ownership. CODEOWNERS still routes those to Rohith, Harsha and
+  Sumith, and `privacy.html` specifically needs Sumith.

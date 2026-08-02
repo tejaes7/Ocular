@@ -21,8 +21,27 @@ import { getHostState, saveHostState } from './lib/store.js';
 
 const OFFSCREEN_TARGET = 'ocular-offscreen';
 
-const TAB_LOAD_TIMEOUT_MS = 25000;
+/**
+ * One budget, spent entirely on the thing we actually care about.
+ *
+ * This used to be a single 25s deadline shared by two sequential phases: "wait
+ * for the tab to reach `complete`", then "wait for the price to appear". On a
+ * heavy retailer page the first phase ate nearly all of it — `complete` waits on
+ * every ad, beacon, font and analytics request, none of which have anything to
+ * do with the price — leaving the price poll a second or less before it threw
+ * `tab-timeout`. That is the "page took too long to load" error, and it fired
+ * hardest on exactly the sites that matter most.
+ *
+ * The fix is to stop gating on `complete` at all. The price node is in the DOM
+ * long before the network settles, so polling starts the moment the tab exists.
+ * The total stays at 25s so sweep duration doesn't regress — the poll simply
+ * gets all of it now instead of the leftovers.
+ */
+const TAB_TOTAL_TIMEOUT_MS = 25000;
 const TAB_POLL_INTERVAL_MS = 900;
+
+/** Cap on *successful* injections; a failed one costs nothing and can retry. */
+const MAX_INJECTIONS = 3;
 
 const BACKOFF_STEPS_MS = [
   60 * 60 * 1000,        // 1 hour
@@ -119,36 +138,43 @@ function serialise(task) {
   return run;
 }
 
-async function waitForTabComplete(tabId, deadline) {
+/**
+ * Ask the content script what it can see, from the moment the tab exists.
+ *
+ * Three outcomes per poll:
+ *   - a reading            → done
+ *   - a reply that isn't ok → the script is alive, the price just isn't painted
+ *   - `null`                → nothing answered; the document isn't up yet, or
+ *                             this is a user-added host with no declared content
+ *                             script, so inject and try again
+ *
+ * Injection is retried rather than latched after one attempt. The old code set
+ * `injected = true` unconditionally, so an attempt that landed before the
+ * document was ready burned the only try and the check could then do nothing but
+ * time out. Only injections that actually succeed count against the cap;
+ * `content.js` no-ops if it finds itself already running in the frame.
+ */
+async function pollForPrice(tabId, deadline) {
+  let injections = 0;
+
   while (Date.now() < deadline) {
+    // Also our liveness check: a user closing the tab should fail fast rather
+    // than spin out the full budget.
     const tab = await chrome.tabs.get(tabId).catch(() => null);
     if (!tab) throw Object.assign(new Error('Tab closed'), { code: 'tab-timeout' });
-    if (tab.status === 'complete') return;
-    await sleep(400);
-  }
-  throw Object.assign(new Error('Tab load timed out'), { code: 'tab-timeout' });
-}
 
-/**
- * Ask the content script what it can see. Retailers paint prices well after
- * `complete`, so poll rather than reading once.
- */
-async function pollForPrice(tabId, url, deadline) {
-  let injected = false;
-
-  while (Date.now() < deadline) {
     const result = await chrome.tabs
       .sendMessage(tabId, { type: 'ocular:scrape' })
       .catch(() => null);
 
     if (result?.ok) return result;
 
-    // No content script on this host (a user-added site). Inject once.
-    if (result === null && !injected) {
-      injected = true;
-      await chrome.scripting
+    if (result === null && injections < MAX_INJECTIONS) {
+      const ok = await chrome.scripting
         .executeScript({ target: { tabId }, files: ['content.js'] })
-        .catch(() => {});
+        .then(() => true)
+        .catch(() => false);
+      if (ok) injections += 1;
     }
 
     await sleep(TAB_POLL_INTERVAL_MS);
@@ -159,7 +185,7 @@ async function pollForPrice(tabId, url, deadline) {
 
 async function checkViaTab(product) {
   return serialise(async () => {
-    const deadline = Date.now() + TAB_LOAD_TIMEOUT_MS;
+    const deadline = Date.now() + TAB_TOTAL_TIMEOUT_MS;
     const url = product.url || product.canonicalUrl;
 
     // Open in the most recently used normal window so we don't spawn a new one.
@@ -174,8 +200,8 @@ async function checkViaTab(product) {
     });
 
     try {
-      await waitForTabComplete(tab.id, deadline);
-      return await pollForPrice(tab.id, url, deadline);
+      // Deliberately no wait-for-`complete` here — see the budget note above.
+      return await pollForPrice(tab.id, deadline);
     } finally {
       // A leaked tab is far worse than a failed check.
       await chrome.tabs.remove(tab.id).catch(() => {});

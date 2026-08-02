@@ -12,7 +12,15 @@
  */
 
 import { isPlausibleReading, mergeHistory, summarizeHistory } from '@ocular/shared/history';
-import { getDeviceId, getHistory, getMeta, listProducts, saveMeta, setHistory } from './store.js';
+import {
+  getDeviceId,
+  getHistory,
+  getMeta,
+  listProducts,
+  saveMeta,
+  saveSettings,
+  setHistory,
+} from './store.js';
 
 const SYNC_TIMEOUT_MS = 15000;
 
@@ -20,23 +28,102 @@ export function syncConfigured(settings) {
   return Boolean(settings?.sync?.enabled && settings.sync.endpoint);
 }
 
+// ---------------------------------------------------------------------------
+// Email alerts: pairing this browser with an account
+// ---------------------------------------------------------------------------
+
 /**
- * Push the watchlist, pull back anything the server saw while we were closed.
+ * The page that turns email alerts on.
  *
- * @returns {{ok: boolean, pulled?: number, tracking?: number, error?: string}}
+ * The extension cannot make this link itself — it holds the device id but has
+ * no Firebase token, and `/link` requires both together. So it hands the device
+ * id to the website, which is already signed in. Returns null when there is no
+ * site configured to send anyone to.
  */
-export async function runSync(settings) {
-  if (!syncConfigured(settings)) return { ok: false, error: 'Sync is not configured.' };
+export async function pairUrl(settings) {
+  const site = settings?.sync?.siteUrl?.replace(/\/$/, '');
+  if (!site) return null;
+  return `${site}/?pair=${await getDeviceId()}`;
+}
+
+/**
+ * Turn email alerts off from this side.
+ *
+ * Unlinking needs only the device token, which is the whole reason the extension
+ * can do it alone: detaching is a de-escalation, and requiring an account token
+ * to undo it would strand anyone locked out of their Google account with a link
+ * they cannot remove.
+ */
+export async function unlinkDevice(settings) {
+  if (!settings?.sync?.endpoint) return { ok: false, error: 'Sync is not configured.' };
 
   const endpoint = settings.sync.endpoint.replace(/\/$/, '');
   const deviceId = await getDeviceId();
-  const meta = await getMeta();
-  const products = await listProducts();
 
+  try {
+    const response = await fetch(`${endpoint}/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceId}` },
+      body: JSON.stringify({ unlink: true }),
+    });
+
+    if (!response.ok) return { ok: false, error: `Server responded ${response.status}` };
+  } catch (error) {
+    return { ok: false, error: String(error.message || error) };
+  }
+
+  await rememberLinkState(settings, false);
+  return { ok: true };
+}
+
+/** The server owns this state; we only cache it so the UI can render offline. */
+async function rememberLinkState(settings, linked) {
+  if (settings.sync.linked === linked) return;
+  await saveSettings({ sync: { ...settings.sync, linked } });
+}
+
+/**
+ * Push the watchlist, pull back anything the server saw while we were closed.
+ *
+ * `catchUp` carries the products whose newest known price changed as a result —
+ * the caller is expected to update those products and raise any alert. Merging
+ * silently was the whole defect: see applyServerPrices below.
+ *
+ * @returns {{ok: boolean, pulled?: number, tracking?: number, catchUp?: Array, error?: string}}
+ */
+/**
+ * A long shutdown can leave more price rows waiting than one response carries,
+ * so a sync may need several round trips to drain them. Bounded because an
+ * endpoint that always claims "more waiting" must not become an infinite loop
+ * inside a service worker: at 5000 rows a page this is far more history than
+ * any real watchlist accumulates, and whatever is left waits for the next sync.
+ */
+const MAX_SYNC_PAGES = 10;
+
+/**
+ * Where the next sync resumes from, given a response.
+ *
+ * Pure and exported for the same reason as the two decisions below it: this is
+ * the line the whole "history stops after 5000 rows" bug lived on. The client
+ * advanced its cursor to the server's clock unconditionally, so on a truncated
+ * page every row past the cap fell into a window already marked as read and was
+ * never requested again.
+ *
+ * `nextSince` is the server's own resume point — the last row it actually sent
+ * when the page was truncated. The fallbacks matter for a worker deployed before
+ * the field existed: `serverTime` restores the old behaviour, which is wrong
+ * only in the truncation case that old worker also never signalled.
+ */
+export function nextCursorFrom(payload, now = Date.now()) {
+  if (Number.isFinite(payload?.nextSince)) return payload.nextSince;
+  if (Number.isFinite(payload?.serverTime)) return payload.serverTime;
+  return now;
+}
+
+async function postSync(endpoint, deviceId, body) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS);
 
-  let payload;
   try {
     const response = await fetch(`${endpoint}/sync`, {
       method: 'POST',
@@ -45,26 +132,20 @@ export async function runSync(settings) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${deviceId}`,
       },
-      body: JSON.stringify({
-        since: meta.lastSyncAt || 0,
-        // Only what the server needs to fetch a page. No prices, no history,
-        // no settings, nothing about the person.
-        products: products
-          .filter((product) => product.status !== 'paused')
-          .map(({ id, url, canonicalUrl, title, currency }) => ({
-            id,
-            url,
-            canonicalUrl,
-            title,
-            currency,
-          })),
-      }),
+      body: JSON.stringify(body),
     });
 
+    const payload = await response.json().catch(() => null);
+
     if (!response.ok) {
-      return { ok: false, error: `Server responded ${response.status}` };
+      // The server's sentence is far more useful than the status code — it is
+      // the difference between "Server responded 413" and being told the
+      // watchlist is over the limit and nothing was changed.
+      return { ok: false, error: payload?.error || `Server responded ${response.status}` };
     }
-    payload = await response.json();
+    if (!payload?.ok) return { ok: false, error: payload?.error || 'Malformed sync response.' };
+
+    return { ok: true, payload };
   } catch (error) {
     return {
       ok: false,
@@ -73,13 +154,75 @@ export async function runSync(settings) {
   } finally {
     clearTimeout(timer);
   }
+}
 
-  if (!payload?.ok) return { ok: false, error: payload?.error || 'Malformed sync response.' };
+export async function runSync(settings) {
+  if (!syncConfigured(settings)) return { ok: false, error: 'Sync is not configured.' };
 
-  const pulled = await applyServerPrices(payload.prices || {});
-  await saveMeta({ lastSyncAt: payload.serverTime || Date.now() });
+  const endpoint = settings.sync.endpoint.replace(/\/$/, '');
+  const deviceId = await getDeviceId();
+  const meta = await getMeta();
+  const products = await listProducts();
 
-  return { ok: true, pulled, tracking: payload.tracking };
+  const watchlist = products
+    .filter((product) => product.status !== 'paused')
+    // Only what the server needs to fetch a page. No prices, no history, no
+    // settings, nothing about the person.
+    .map(({ id, url, canonicalUrl, title, currency }) => ({
+      id,
+      url,
+      canonicalUrl,
+      title,
+      currency,
+    }));
+
+  let since = meta.lastSyncAt || 0;
+  let added = 0;
+  const catchUp = [];
+  let last = null;
+
+  for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
+    const result = await postSync(endpoint, deviceId, {
+      since,
+      // The watchlist goes up once. Later pages exist only to drain price rows,
+      // and re-sending it would make each one a redundant write — and, worse,
+      // re-assert a deletion reconcile against a list that may have changed
+      // under us while we were paging.
+      complete: page === 0,
+      products: page === 0 ? watchlist : [],
+    });
+
+    if (!result.ok) {
+      // Pages already applied are kept: their rows are in history and their
+      // cursor is saved, so a mid-drain failure costs a retry, not the work.
+      if (page === 0) return result;
+      break;
+    }
+
+    const { payload } = result;
+    last = payload;
+
+    const applied = await applyServerPrices(payload.prices || {});
+    added += applied.added;
+    catchUp.push(...applied.catchUp);
+
+    since = nextCursorFrom(payload);
+    await saveMeta({ lastSyncAt: since });
+
+    if (payload.truncated !== true) break;
+  }
+
+  // Refreshed every sync, because the link can be removed from the website and
+  // this side would otherwise keep claiming email alerts are on.
+  await rememberLinkState(settings, last?.linked === true);
+
+  return {
+    ok: true,
+    pulled: added,
+    tracking: last?.tracking,
+    catchUp,
+    linked: last?.linked === true,
+  };
 }
 
 /**
@@ -124,6 +267,41 @@ export function acceptableServerPoints(points, stats) {
 }
 
 /**
+ * Decide whether a merge changed what this device believes the price *is*.
+ *
+ * Pure and exported for the same reason as the gate above: this is the decision
+ * that turns a silent background merge into a notification, and getting it wrong
+ * is either a missed price drop or a burst of spurious alerts.
+ *
+ * Two conditions, both load-bearing:
+ *
+ *   - The newest point after the merge must be the server's. A sync usually
+ *     backfills *gaps* — readings older than the browser's own latest — and those
+ *     change history without changing the current price. Alerting on them would
+ *     announce a "drop" the user already lived through.
+ *   - Only the single newest point is considered. Pulling a week of server rows
+ *     after a long shutdown must produce one alert per product, not one per row.
+ *
+ * @returns {{price, inStock, ts, previousPrice}|null}
+ */
+export function catchUpFrom(before, after) {
+  const newest = after[after.length - 1];
+  if (!newest || newest.source !== 'server') return null;
+
+  const previous = before[before.length - 1];
+  if (previous && previous.ts >= newest.ts) return null;
+
+  return {
+    price: newest.price,
+    inStock: newest.inStock,
+    ts: newest.ts,
+    // Null on a product whose history was empty: with nothing to compare
+    // against there is no drop, and the caller will not raise an alert.
+    previousPrice: previous ? previous.price : null,
+  };
+}
+
+/**
  * Merge server observations into local history.
  *
  * mergeHistory() sorts by timestamp and re-collapses runs of identical prices,
@@ -138,10 +316,17 @@ export function acceptableServerPoints(points, stats) {
  * and fires a false "lowest ever". `mergeHistory` is not a defence: it only
  * stops a server point *overwriting* a browser one, and a bad point landing in
  * a gap overwrites nothing.
+ *
+ * What this used to do and no longer does: write history and stop. Nothing
+ * updated `lastPrice`, so the popup, the badge and the in-page panel all kept
+ * showing the old number while history held the new one, and nothing raised an
+ * alert, so a drop the worker caught overnight reached the user as silence. The
+ * entire server pipeline produced no visible outcome. Hence `catchUp`.
  */
 async function applyServerPrices(pricesByProduct) {
   let added = 0;
   let rejected = 0;
+  const catchUp = [];
 
   // Hoisted: this was called per product inside the loop, so a sync pulling N
   // products re-read the entire product list N times.
@@ -169,6 +354,9 @@ async function applyServerPrices(pricesByProduct) {
     if (merged.length !== before.length) {
       await setHistory(productId, merged);
       added += merged.length - before.length;
+
+      const event = catchUpFrom(before, merged);
+      if (event) catchUp.push({ productId, ...event });
     }
   }
 
@@ -179,5 +367,5 @@ async function applyServerPrices(pricesByProduct) {
     console.warn(`[Sync] Rejected ${rejected} implausible server reading(s).`);
   }
 
-  return added;
+  return { added, catchUp };
 }
