@@ -57,8 +57,7 @@ const stores = [
     logo: jiomartLogo,
     logoClass: 'h-10',
   },
-  // Brand-owned stores. These four marks are solid black by design, so the
-  // grayscale-to-colour hover is a no-op on them — nothing to desaturate.
+  // Brand-owned stores.
   { name: 'Nike', url: 'https://www.nike.com/in', logo: nikeLogo, logoClass: 'h-8' },
   { name: 'Adidas', url: 'https://www.adidas.co.in', logo: adidasLogo, logoClass: 'h-10' },
   { name: 'Puma', url: 'https://in.puma.com', logo: pumaLogo, logoClass: 'h-7' },
@@ -85,14 +84,11 @@ function StoreCard({ store }) {
           <img
             src={store.logo}
             alt={`${store.name} logo`}
-            // Desaturated at rest so the strip reads as one texture; full colour
-            // on hover. Only `filter` transitions — the card already animates
-            // transform and shadow, and `transition-all` would drag those along.
-            className={`w-full object-contain drop-shadow-sm grayscale group-hover:grayscale-0 transition-[filter] duration-300 ${store.logoClass || 'h-9'}`}
+            className={`w-full object-contain drop-shadow-sm ${store.logoClass || 'h-9'}`}
             loading="lazy"
           />
         ) : (
-          <span className="text-sm font-semibold tracking-[0.18em] theme-text-main pl-[0.18em] opacity-60 group-hover:opacity-100 transition-opacity duration-300">
+          <span className="text-sm font-semibold tracking-[0.18em] theme-text-main pl-[0.18em]">
             {store.wordmark}
           </span>
         )}
@@ -149,11 +145,32 @@ export default function StoresBar() {
       }
     };
 
+    // The CSS keyframe loops the *transform*, but native scrolling moves through
+    // a finite track — scroll past the second copy and you hit the end of the
+    // list and a blank gap. The track is exactly two identical halves, so
+    // wrapping scrollLeft by one half lands on visually identical content and
+    // the list reads as endless in both directions.
+    let setWidth = rail.scrollWidth / 2;
+    const measure = () => {
+      setWidth = rail.scrollWidth / 2;
+    };
+
+    const onScroll = () => {
+      if (setWidth <= 0) return;
+      // Assigning scrollLeft re-fires scroll, but the condition is false the
+      // second time, so this settles immediately rather than recursing.
+      if (rail.scrollLeft >= setWidth) rail.scrollLeft -= setWidth;
+      else if (rail.scrollLeft <= 0) rail.scrollLeft += setWidth;
+    };
+
     rail.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('pointercancel', endDrag);
     rail.addEventListener('click', onClickCapture, true);
+    rail.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', measure, { passive: true });
+    window.addEventListener('load', measure);
 
     return () => {
       rail.removeEventListener('pointerdown', onPointerDown);
@@ -161,6 +178,9 @@ export default function StoresBar() {
       window.removeEventListener('pointerup', endDrag);
       window.removeEventListener('pointercancel', endDrag);
       rail.removeEventListener('click', onClickCapture, true);
+      rail.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('load', measure);
     };
   }, []);
 

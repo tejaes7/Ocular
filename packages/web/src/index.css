@@ -37,6 +37,15 @@
 }
 
 @layer base {
+  /* A two-finger horizontal swipe that the page doesn't consume gets handed to
+     the browser as a back/forward gesture. Containing it at the root is what
+     actually stops that — `overscroll-behavior-x` on the stores rail alone only
+     covers swipes that begin inside the rail and reach its edge. */
+  html,
+  body {
+    overscroll-behavior-x: contain;
+  }
+
   body {
     background-color: var(--bg-main);
     color: var(--text-main);
@@ -52,15 +61,17 @@
 }
 
 /* Custom pointer.
-   Was a 22x22 PNG, which rendered noticeably heavier than the system arrow —
-   a bitmap cursor is drawn at its own pixel size, so it also softened on
-   high-DPI screens. This is the same shape as vector: it stays sharp at any
-   scale, is a slimmer silhouette, and costs no request.
-   Navy fill with a white rim so it reads on both the light page and the dark
-   video sections. The trailing `2 1` is the hotspot — the pixel that actually
-   clicks — sitting on the arrow tip. */
+   This is the 22x22 PNG traced from the arrow the designer supplied — white
+   body, thin #14283f rim so it reads on both the light page and the blue
+   panels. The trailing `0 0` is the hotspot: the pixel that actually clicks,
+   sitting on the arrow tip.
+
+   A vector version briefly replaced this (a data URI, sharper on high-DPI and
+   one fewer request) but it was a different silhouette, not the supplied
+   artwork. If the DPI softness becomes a problem, re-trace THIS shape as an
+   SVG rather than substituting another arrow. */
 :root {
-  --cursor-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='17' height='17' viewBox='0 0 17 17'%3E%3Cpath d='M2 1.2 L2 13 L4.9 10.3 L6.9 14.6 L8.8 13.7 L6.9 9.6 L10.8 9.4 Z' fill='%2314283f' stroke='%23ffffff' stroke-width='1' stroke-linejoin='round'/%3E%3C/svg%3E") 2 1;
+  --cursor-arrow: url('/cursor.png') 0 0;
 }
 
 /* Applied to every element, not just body. `cursor` inherits, but any element
