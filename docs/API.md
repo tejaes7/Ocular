@@ -6,32 +6,42 @@ change, and link the PR on the other side.
 
 ---
 
-## Identity: two of them, never joined
+## Identity: two of them, joined in one place
 
 Ocular carries two separate identities. Which one a request uses is decided by
-the route, and **nothing may correlate them**.
+the route.
 
 | | Device UUID | Account (optional) |
 |---|---|---|
 | What it is | A v4 UUID the extension generates locally on first run | A Firebase uid, from signing in with Google |
 | Used by | `POST /sync` | `GET /me` |
-| Purpose | Carries one browser's watchlist so the worker knows what to check | Lets one person's own devices share a watchlist |
+| Purpose | Carries one browser's watchlist so the worker knows what to check | Lets one person's own devices share a watchlist, and receives email alerts |
 | Required? | Yes, for sync | **No.** Everything works signed out |
 | Identifies a person? | No | Yes — it has an email address |
 
-**The invariant: no row that carries a price may carry a user id.** Price data is
-keyed to the anonymous device UUID and to nothing else. An account may point at
-its devices; a device may never point back at a price row through an account.
+**No row that carries a price carries a user id.** That part still holds: the
+`prices` table is keyed to the device UUID and nothing else.
 
-This is not a stylistic preference. The training dataset described in
-`packages/ai/WORKLOG.md` is only defensible because the price series in it cannot
-be attributed to a person. Adding `user_id` to a price table is the single change
-that would break that, and it needs a decision from the whole team rather than a
-migration — see the header of `packages/backend/migrations/0002_users.sql`.
+**But the two are now joinable.** `POST /link` writes `devices.user_id`, so
+`prices → device → user` is a two-hop join for anyone with database access.
+Decided on 2026-08-02 to make email price alerts possible, because a drop found
+while the browser is closed cannot reach the user through any channel that does
+not know who they are. The decision and its cost are recorded in
+`packages/backend/migrations/0003_email_alerts.sql`.
 
-Signing in buys exactly one thing today: your watchlist follows you between your
-own browsers. It does not unlock features, it is not required, and it does not
-change what is stored about a product.
+What keeps it narrow:
+
+- The link is **opt-in** — a device that never calls `/link` is exactly as
+  anonymous as before, and signed-out remains the default.
+- It is **reversible** — `{"unlink": true}` clears it.
+- It requires **both credentials in one call**, so neither token alone can
+  create it.
+
+**Known consequence, unresolved.** The training dataset in
+`packages/ai/WORKLOG.md` was defensible precisely because its price series could
+not be attributed to a person. For linked devices that is no longer true, so the
+collection pipeline needs an explicit decision: either exclude linked devices
+from the dataset, or strip the link at export. Nothing enforces this yet.
 
 ---
 
@@ -192,8 +202,56 @@ Things that are load-bearing here:
   would fail on the unique uid.
 - **Never returns `{ ok: true }` with a null user.** A write that did not produce
   a row is a 500. Clients may rely on `user.uid` existing whenever `ok` is true.
-- **This route touches no price data**, and adding a field here that links it to
-  any is the change the identity section forbids.
+- **This route touches no price data.** `/link` is where the two identities meet;
+  keep that in one place rather than spreading it across routes.
+
+### `POST /link`
+
+Attaches a device's watchlist to an account so the worker can email price drops
+found while the browser is closed. **This is the only route that joins the two
+identities** — read the identity section above before changing it.
+
+```
+Authorization: Bearer <firebase-id-token>
+Content-Type: application/json
+```
+
+```jsonc
+// Request
+{
+  "deviceId": "3f0c1e2a-...",   // required, same strict UUID shape as /sync
+  "unlink": false               // optional; true detaches and returns immediately
+}
+```
+
+```jsonc
+// Response 200
+{ "ok": true, "linked": true, "email": "shopper@example.com" }
+```
+
+| Code | Status | Meaning |
+|---|---|---|
+| `MISSING_AUTH_HEADER` | 401 | No `Authorization` header |
+| `MALFORMED_AUTH_HEADER` | 401 | Present, but not `Bearer <token>` |
+| `INVALID_TOKEN` | 401 | Firebase token failed verification |
+| `BAD_REQUEST` | 400 | Body was not JSON, or `deviceId` was not a UUID |
+| `NO_EMAIL` | 400 | The account has no email address to send alerts to |
+| `PERSIST_FAILED` | 500 | The link could not be written |
+
+Things that are load-bearing here:
+
+- **Both credentials are required in one call.** A device token alone cannot
+  attach an account, and an account token alone cannot claim a device. Neither
+  side can be joined on the user's behalf by a caller holding only one.
+- **Reversible, and reversal needs only the account token.** `unlink` does not
+  require the account to still exist.
+- **Accounts with no email are rejected rather than linked.** Phone and anonymous
+  sign-in mint valid tokens with no email claim; linking one produces a link that
+  can never deliver anything.
+- **No client can reach this yet.** The extension has no Firebase sign-in — auth
+  lives in `packages/web` — so the device UUID and the ID token are currently
+  never in the same place. Until that is bridged, this route is reachable but
+  nothing calls it and no email can send.
 
 ---
 

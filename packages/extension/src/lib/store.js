@@ -25,6 +25,22 @@ import { repairHistory } from '@ocular/shared/history';
 
 export const SCHEMA_VERSION = 3;
 
+/**
+ * The deployed worker, baked in so background sync costs one toggle instead of
+ * a URL nobody has.
+ *
+ * Set this to the deployment (`https://ocular.<subdomain>.workers.dev`, or the
+ * custom domain) and sync becomes on-by-default for new installs. It is
+ * deliberately a constant rather than a build-time variable: the value is not a
+ * secret, and a missing env var at build time would silently ship the old
+ * invisible default again.
+ *
+ * Existing users are unaffected either way — getSettings() merges stored
+ * settings over these defaults, so anyone who has already made a choice keeps
+ * it.
+ */
+export const DEFAULT_SYNC_ENDPOINT = '';
+
 const SETTINGS_KEY = 'settings';
 const PRODUCTS_KEY = 'products';
 const HOSTS_KEY = 'hosts';
@@ -59,8 +75,18 @@ export const DEFAULT_SETTINGS = {
   backupIntervalDays: 7,
 
   sync: {
-    enabled: false,
-    endpoint: '',
+    // On by default — but only once there is somewhere to sync to.
+    //
+    // Background sync is the answer to "my laptop was closed", and it was
+    // previously invisible: off, with an empty endpoint, so a user had to know
+    // the worker URL and paste it into the options page. Almost nobody will.
+    // Filling in DEFAULT_SYNC_ENDPOINT below turns it on for everyone.
+    //
+    // Defaulting `enabled` true with no endpoint would be worse than useless:
+    // syncConfigured() requires both, so nothing would sync while the options
+    // page showed the switch on — a settings screen that lies about its state.
+    enabled: Boolean(DEFAULT_SYNC_ENDPOINT),
+    endpoint: DEFAULT_SYNC_ENDPOINT,
   },
 
   // AI is out of scope for now; the pipeline never calls it while provider is 'off'.

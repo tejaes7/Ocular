@@ -19,20 +19,26 @@
  *     - Blocked hosts back off exponentially rather than hammering.
  *     - Smaller retailers with clean JSON-LD are where this earns its keep.
  *
- * Two identities, and they are never joined. `/sync` authenticates with a
+ * Two identities, joined in exactly one place. `/sync` authenticates with a
  * locally generated device UUID and is the only route that touches price data.
  * `/me` authenticates with a Firebase token and is the only route that knows a
  * person's name — accounts are optional and exist so one person's own browsers
  * can share a watchlist.
  *
- * The invariant, spelled out in docs/API.md: no row that carries a price may
- * carry a user id. Adding one is a team decision, not a migration.
+ * `/link` is the exception, added 2026-08-02 so that price drops found while
+ * the browser is closed can be emailed. It requires both credentials in one
+ * call, writes `devices.user_id`, and is reversible. No price row carries a
+ * user id — but prices -> device -> user is now a reachable join, so the older
+ * "never joined" wording in docs/API.md and packages/web/public/privacy.html no
+ * longer describes this service and needs updating to match. See
+ * migrations/0003_email_alerts.sql for the decision and what it costs.
  */
 
 import { runCron } from './checker/cron.js';
 import { fail, json, preflight } from './lib/http.js';
 import { handleSync } from './routes/sync.js';
 import { getCurrentUser } from './routes/auth.js';
+import { handleLink } from './routes/link.js';
 
 /**
  * Liveness, and it actually checks the thing that fails.
@@ -83,6 +89,10 @@ export default {
 
     if (url.pathname === '/me' && request.method === 'GET') {
       return getCurrentUser(request, env);
+    }
+
+    if (url.pathname === '/link' && request.method === 'POST') {
+      return handleLink(request, env);
     }
 
     return fail('NOT_FOUND', 'Not found', 404);

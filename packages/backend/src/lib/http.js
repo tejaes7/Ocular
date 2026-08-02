@@ -32,7 +32,34 @@ export const fail = (code, message, status) =>
 
 export const preflight = () => new Response(null, { status: 204, headers: CORS });
 
+/**
+ * Pull a bearer token off a request.
+ *
+ * One implementation, because this is a security-relevant parse and two copies
+ * drift. It requires the scheme rather than stripping an optional "Bearer "
+ * prefix: stripping lets a header of exactly `Authorization: Bearer` fall
+ * through with the literal string "Bearer" as the credential, since the Headers
+ * API trims the trailing space and a prefix match has nothing left to remove.
+ * That reaches the verifier as if it were a real token.
+ *
+ * @returns {{token: string}|{error: 'MISSING'|'MALFORMED'}}
+ */
+export function bearerTokenFrom(request) {
+  const header = request.headers.get('Authorization');
+  if (!header) return { error: 'MISSING' };
+
+  const scheme = /^Bearer\s+(\S.*)$/i.exec(header.trim());
+  if (!scheme) return { error: 'MALFORMED' };
+
+  return { token: scheme[1].trim() };
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The same shape check `deviceIdFrom` applies, for ids that arrive in a body. */
+export function isDeviceId(value) {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
 
 /**
  * Extract the caller's device id.

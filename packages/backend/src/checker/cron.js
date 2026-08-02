@@ -15,8 +15,17 @@
  */
 
 import { scanHtml } from '@ocular/shared/htmlscan';
-import { dueProducts, recordFailure, recordSuccess } from '../db/queries.js';
+import {
+  alertRecipientFor,
+  dueProducts,
+  priceHistoryFor,
+  recordAlertSent,
+  recordFailure,
+  recordSuccess,
+} from '../db/queries.js';
+import { composeAlertEmail, shouldEmail } from './alerts.js';
 import { fetchPage } from './fetch.js';
+import { emailConfigured, sendEmail } from '../lib/email.js';
 
 const MAX_CHECKS_PER_CRON = 40;
 const MAX_PER_HOST_PER_CRON = 4;
@@ -139,4 +148,50 @@ export async function checkOne(env, product, fetchImpl = fetchPage) {
     inStock: result.inStock,
     title: result.title,
   });
+
+  // Strictly after the write, and never able to fail it. An email is the least
+  // important thing this function does; the price row is the most.
+  await maybeEmailAlert(env, product, result.price, now).catch((error) => {
+    console.error('[Alert]', { productId: product.id, error: error.message });
+  });
+}
+
+/**
+ * Reach the user outside the browser, when the browser cannot reach them.
+ *
+ * Ordering matters here. The cheap local checks come first and the two database
+ * reads only happen for a product that might genuinely alert, because this runs
+ * for every successful check on every product on every tick.
+ */
+async function maybeEmailAlert(env, product, price, now) {
+  if (!emailConfigured(env)) return;
+
+  const recipient = await alertRecipientFor(env, product);
+  // No account, or an account with no email address. Both are normal.
+  if (!recipient?.email) return;
+
+  const history = await priceHistoryFor(env, product);
+  const decision = shouldEmail({
+    product,
+    history,
+    price,
+    deviceLastSeen: recipient.last_seen_at,
+    now,
+  });
+
+  if (!decision.send) return;
+
+  const message = composeAlertEmail({
+    product,
+    price,
+    previousPrice: decision.previousPrice,
+    verdict: decision.verdict,
+  });
+
+  const sent = await sendEmail(env, { to: recipient.email, ...message });
+
+  // Only a delivered email consumes the alert. Recording it on a failed send
+  // would start the cooldown and mark the price as already-alerted, so the user
+  // would never hear about this drop at all.
+  if (sent.ok) await recordAlertSent(env, product, { now, price });
 }
