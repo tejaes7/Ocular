@@ -16,9 +16,16 @@
 import { extractProduct } from '@ocular/shared/extract';
 import { escapeHtml, money, relativeTime } from '@ocular/shared/format';
 import { looksLikeProductPage } from '@ocular/shared/sites';
+import { makeDraggable, placeNear } from './lib/overlay.js';
 
 const BUTTON_ID = 'ocular-monitor-button';
 const PANEL_ID = 'ocular-panel';
+
+/** How long to keep waiting for a client-rendered page to paint its price. */
+const EXTRACT_TIMEOUT_MS = 15000;
+
+/** Quiet period after a burst of DOM mutations before we try scraping again. */
+const DOM_SETTLE_MS = 250;
 
 let lastUrl = location.href;
 let evaluateTimer = null;
@@ -74,6 +81,10 @@ function removeButton() {
 function renderButton({ tracked }) {
   removeButton();
 
+  // `document_idle` guarantees a body, but the checker also injects this file
+  // into background tabs via chrome.scripting, where timing is less certain.
+  if (!document.body) return;
+
   const button = document.createElement('button');
   button.id = BUTTON_ID;
   button.type = 'button';
@@ -116,6 +127,15 @@ function renderButton({ tracked }) {
   });
 
   document.body.appendChild(button);
+
+  // Drag-to-move. The overlay module suppresses the click that follows a real
+  // drag, so the handler above only ever sees an intentional press.
+  makeDraggable(button, {
+    onMove() {
+      const panel = document.getElementById(PANEL_ID);
+      if (panel) placeNear(panel, button);
+    },
+  });
 }
 
 function flash(text) {
@@ -144,6 +164,18 @@ function onPanelKeydown(event) {
   if (event.key === 'Escape') closePanel();
 }
 
+/**
+ * Keep the panel attached to the button.
+ *
+ * Called after every render because the panel's height changes with its content
+ * — an error message is far shorter than the full stats view, and a panel
+ * anchored above the button would otherwise drift as it resizes.
+ */
+function anchorPanel(panel) {
+  const button = document.getElementById(BUTTON_ID);
+  if (button) placeNear(panel, button);
+}
+
 async function togglePanel() {
   if (document.getElementById(PANEL_ID)) {
     closePanel();
@@ -157,6 +189,7 @@ async function togglePanel() {
   panel.setAttribute('aria-label', 'Ocular price watch status');
   panel.innerHTML = '<div class="ocular-panel__msg">Loading…</div>';
   document.body.appendChild(panel);
+  anchorPanel(panel);
   document.addEventListener('keydown', onPanelKeydown);
 
   const state = await send({ type: 'status', url: location.href });
@@ -196,6 +229,7 @@ function renderPanelError(panel, text) {
     body: `<div class="ocular-panel__msg ocular-panel__msg--bad">${escapeHtml(text)}</div>`,
     actions: '<button data-act="reload">Refresh page</button>',
   });
+  anchorPanel(panel);
 
   panel.onclick = (event) => {
     const action = event.target.closest('button[data-act]')?.dataset.act;
@@ -254,6 +288,7 @@ function renderPanel(panel, state) {
     `,
     foot: `v${escapeHtml(version)}`,
   });
+  anchorPanel(panel);
 
   panel.onclick = async (event) => {
     const button = event.target.closest('button[data-act]');
@@ -290,42 +325,133 @@ function renderPanel(panel, state) {
 // Page lifecycle
 // ---------------------------------------------------------------------------
 
+/**
+ * Wait until the page actually contains a price.
+ *
+ * React/Vue/Angular storefronts ship an empty shell and paint the price after a
+ * client-side fetch, so the first scrape routinely fails on a page that reads
+ * perfectly two seconds later. This used to take that first failure as final and
+ * return — which is the whole reason the button never appeared on those sites.
+ * The observer at the bottom of this file only re-runs on a *URL* change, and a
+ * price arriving is not a URL change, so nothing ever tried again.
+ *
+ * Driven by mutations rather than a fixed poll: it settles the moment the price
+ * node lands, and costs nothing once the page goes quiet. `characterData` is
+ * included because a framework re-rendering a price often replaces the text of
+ * an existing node rather than the node itself.
+ *
+ * Nothing here blocks page load — it is all observer callbacks and timers.
+ */
+function waitForExtractable(url) {
+  const first = scrape();
+  if (first.ok) return Promise.resolve(first);
+
+  return new Promise((resolve) => {
+    let settleTimer = null;
+    let done = false;
+
+    const finish = (result) => {
+      if (done) return;
+      done = true;
+      clearTimeout(settleTimer);
+      clearTimeout(deadline);
+      observer.disconnect();
+      resolve(result);
+    };
+
+    const attempt = () => {
+      // A client-side navigation mid-wait makes anything we scrape belong to a
+      // different product. Bail and let the URL watcher start a fresh pass.
+      if (location.href !== url) return finish({ ok: false, reason: 'navigated' });
+
+      const result = scrape();
+      if (result.ok) finish(result);
+    };
+
+    const observer = new MutationObserver(() => {
+      // Retailer pages mutate constantly — carousels, lazy images, ad slots — so
+      // debounce and scrape once per burst instead of once per node.
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(attempt, DOM_SETTLE_MS);
+    });
+
+    const deadline = setTimeout(() => finish({ ok: false, reason: 'extract-timeout' }), EXTRACT_TIMEOUT_MS);
+
+    observer.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+  });
+}
+
+/**
+ * Cancels a slow in-flight evaluation when a newer one starts, so a client-side
+ * navigation during the 15s extract window can't render a button for the product
+ * the user just navigated away from.
+ */
+let evaluateToken = 0;
+
 async function evaluatePage() {
+  const token = ++evaluateToken;
+  const url = location.href;
+
   removeButton();
   closePanel();
-  if (!looksLikeProductPage(location.href)) return;
+  if (!looksLikeProductPage(url)) return;
 
-  const observed = scrape();
+  const observed = await waitForExtractable(url);
+  if (token !== evaluateToken || location.href !== url) return; // superseded
   if (!observed.ok) return;
 
-  const status = await send({ type: 'isTracked', url: location.href });
+  const status = await send({ type: 'isTracked', url });
+  if (token !== evaluateToken) return;
   if (!status.ok) return; // extension reloaded; stay quiet rather than lie
 
   if (status.tracked) {
-    await send({ type: 'observe', url: location.href, observed });
+    await send({ type: 'observe', url, observed });
+    if (token !== evaluateToken) return;
   }
 
   renderButton({ tracked: Boolean(status.tracked) });
 }
 
-/** Retailers render prices late and navigate client-side. Give the page a beat. */
+/**
+ * Retailers render prices late and navigate client-side.
+ *
+ * The delay is asymmetric on purpose. On a fresh document load there is no stale
+ * content to misread, so the first attempt goes immediately and `waitForExtractable`
+ * absorbs any lateness. After a client-side navigation the old product's price is
+ * still sitting in the DOM, so we wait — scraping too early there reads the *previous*
+ * product, and a wrong price is worse than a late one.
+ */
 function scheduleEvaluate(delay = 1200) {
   clearTimeout(evaluateTimer);
   evaluateTimer = setTimeout(() => evaluatePage().catch(console.warn), delay);
 }
 
-new MutationObserver(() => {
-  if (location.href !== lastUrl) {
-    lastUrl = location.href;
-    scheduleEvaluate(1500);
-  }
-}).observe(document, { subtree: true, childList: true });
+/**
+ * A second copy of this script can land in the same frame: the manifest injects
+ * it on matched hosts, and checker.js injects it again for user-added sites.
+ * Both copies share one isolated world, so this flag stops the second from
+ * registering a rival `ocular:scrape` listener and racing the first.
+ */
+if (!window.__ocularContentLoaded) {
+  window.__ocularContentLoaded = true;
 
-// Answers the background worker during a hidden-tab check.
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'ocular:scrape') return false;
-  sendResponse(scrape());
-  return true;
-});
+  new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      scheduleEvaluate(1500);
+    }
+  }).observe(document, { subtree: true, childList: true });
 
-scheduleEvaluate(800);
+  // Answers the background worker during a hidden-tab check.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== 'ocular:scrape') return false;
+    sendResponse(scrape());
+    return true;
+  });
+
+  scheduleEvaluate(0);
+}

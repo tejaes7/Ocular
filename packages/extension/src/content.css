@@ -74,6 +74,12 @@
   box-shadow: var(--oc-shadow) !important;
   cursor: pointer !important;
   transition: transform 0.14s ease, opacity 0.14s ease !important;
+
+  /* Dragging. `all: unset` above wipes both of these, so they must be restated:
+     without `touch-action: none` a touch drag scrolls the page instead of moving
+     the button, and without `user-select: none` a mouse drag selects the label. */
+  touch-action: none !important;
+  user-select: none !important;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -82,6 +88,16 @@
 
 #ocular-monitor-button:hover { transform: translateY(-1px) !important; opacity: 0.9 !important; }
 #ocular-monitor-button:focus-visible { outline: 2px solid #fff !important; outline-offset: 2px !important; }
+
+/* Must stay after :hover — equal specificity, so source order decides. The hover
+   lift would otherwise offset the element by 1px from where the pointer is, and
+   the transition would make it lag behind the cursor. */
+#ocular-monitor-button.ocular-dragging {
+  cursor: grabbing !important;
+  transform: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+}
 
 #ocular-monitor-button .ocular-btn__eye {
   width: 13px !important;

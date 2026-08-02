@@ -10,6 +10,13 @@
  *   selectors      -> { [hostname]: string }      AI-learned selectors (unused for now)
  *   deviceId       -> string                      anonymous id for optional sync
  *   meta           -> { schemaVersion, installedAt, lastBackupAt }
+ *   ui:overlay     -> { x, y, vw, vh }            where the user dragged the
+ *                                                 in-page button. Written by the
+ *                                                 content script (lib/overlay.js),
+ *                                                 not through this module — it is
+ *                                                 pure UI state and importing this
+ *                                                 file would pull the whole store
+ *                                                 into every retailer page.
  */
 
 // 3 adds `strategy` / `confidence` provenance to each price point, and a one-time
