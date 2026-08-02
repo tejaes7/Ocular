@@ -91,18 +91,39 @@ async function rememberLinkState(settings, linked) {
  *
  * @returns {{ok: boolean, pulled?: number, tracking?: number, catchUp?: Array, error?: string}}
  */
-export async function runSync(settings) {
-  if (!syncConfigured(settings)) return { ok: false, error: 'Sync is not configured.' };
+/**
+ * A long shutdown can leave more price rows waiting than one response carries,
+ * so a sync may need several round trips to drain them. Bounded because an
+ * endpoint that always claims "more waiting" must not become an infinite loop
+ * inside a service worker: at 5000 rows a page this is far more history than
+ * any real watchlist accumulates, and whatever is left waits for the next sync.
+ */
+const MAX_SYNC_PAGES = 10;
 
-  const endpoint = settings.sync.endpoint.replace(/\/$/, '');
-  const deviceId = await getDeviceId();
-  const meta = await getMeta();
-  const products = await listProducts();
+/**
+ * Where the next sync resumes from, given a response.
+ *
+ * Pure and exported for the same reason as the two decisions below it: this is
+ * the line the whole "history stops after 5000 rows" bug lived on. The client
+ * advanced its cursor to the server's clock unconditionally, so on a truncated
+ * page every row past the cap fell into a window already marked as read and was
+ * never requested again.
+ *
+ * `nextSince` is the server's own resume point — the last row it actually sent
+ * when the page was truncated. The fallbacks matter for a worker deployed before
+ * the field existed: `serverTime` restores the old behaviour, which is wrong
+ * only in the truncation case that old worker also never signalled.
+ */
+export function nextCursorFrom(payload, now = Date.now()) {
+  if (Number.isFinite(payload?.nextSince)) return payload.nextSince;
+  if (Number.isFinite(payload?.serverTime)) return payload.serverTime;
+  return now;
+}
 
+async function postSync(endpoint, deviceId, body) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS);
 
-  let payload;
   try {
     const response = await fetch(`${endpoint}/sync`, {
       method: 'POST',
@@ -111,26 +132,20 @@ export async function runSync(settings) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${deviceId}`,
       },
-      body: JSON.stringify({
-        since: meta.lastSyncAt || 0,
-        // Only what the server needs to fetch a page. No prices, no history,
-        // no settings, nothing about the person.
-        products: products
-          .filter((product) => product.status !== 'paused')
-          .map(({ id, url, canonicalUrl, title, currency }) => ({
-            id,
-            url,
-            canonicalUrl,
-            title,
-            currency,
-          })),
-      }),
+      body: JSON.stringify(body),
     });
 
+    const payload = await response.json().catch(() => null);
+
     if (!response.ok) {
-      return { ok: false, error: `Server responded ${response.status}` };
+      // The server's sentence is far more useful than the status code — it is
+      // the difference between "Server responded 413" and being told the
+      // watchlist is over the limit and nothing was changed.
+      return { ok: false, error: payload?.error || `Server responded ${response.status}` };
     }
-    payload = await response.json();
+    if (!payload?.ok) return { ok: false, error: payload?.error || 'Malformed sync response.' };
+
+    return { ok: true, payload };
   } catch (error) {
     return {
       ok: false,
@@ -139,17 +154,75 @@ export async function runSync(settings) {
   } finally {
     clearTimeout(timer);
   }
+}
 
-  if (!payload?.ok) return { ok: false, error: payload?.error || 'Malformed sync response.' };
+export async function runSync(settings) {
+  if (!syncConfigured(settings)) return { ok: false, error: 'Sync is not configured.' };
 
-  const { added, catchUp } = await applyServerPrices(payload.prices || {});
-  await saveMeta({ lastSyncAt: payload.serverTime || Date.now() });
+  const endpoint = settings.sync.endpoint.replace(/\/$/, '');
+  const deviceId = await getDeviceId();
+  const meta = await getMeta();
+  const products = await listProducts();
+
+  const watchlist = products
+    .filter((product) => product.status !== 'paused')
+    // Only what the server needs to fetch a page. No prices, no history, no
+    // settings, nothing about the person.
+    .map(({ id, url, canonicalUrl, title, currency }) => ({
+      id,
+      url,
+      canonicalUrl,
+      title,
+      currency,
+    }));
+
+  let since = meta.lastSyncAt || 0;
+  let added = 0;
+  const catchUp = [];
+  let last = null;
+
+  for (let page = 0; page < MAX_SYNC_PAGES; page += 1) {
+    const result = await postSync(endpoint, deviceId, {
+      since,
+      // The watchlist goes up once. Later pages exist only to drain price rows,
+      // and re-sending it would make each one a redundant write — and, worse,
+      // re-assert a deletion reconcile against a list that may have changed
+      // under us while we were paging.
+      complete: page === 0,
+      products: page === 0 ? watchlist : [],
+    });
+
+    if (!result.ok) {
+      // Pages already applied are kept: their rows are in history and their
+      // cursor is saved, so a mid-drain failure costs a retry, not the work.
+      if (page === 0) return result;
+      break;
+    }
+
+    const { payload } = result;
+    last = payload;
+
+    const applied = await applyServerPrices(payload.prices || {});
+    added += applied.added;
+    catchUp.push(...applied.catchUp);
+
+    since = nextCursorFrom(payload);
+    await saveMeta({ lastSyncAt: since });
+
+    if (payload.truncated !== true) break;
+  }
 
   // Refreshed every sync, because the link can be removed from the website and
   // this side would otherwise keep claiming email alerts are on.
-  await rememberLinkState(settings, payload.linked === true);
+  await rememberLinkState(settings, last?.linked === true);
 
-  return { ok: true, pulled: added, tracking: payload.tracking, catchUp, linked: payload.linked === true };
+  return {
+    ok: true,
+    pulled: added,
+    tracking: last?.tracking,
+    catchUp,
+    linked: last?.linked === true,
+  };
 }
 
 /**

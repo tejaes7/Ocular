@@ -47,18 +47,37 @@ export async function listProductIds(env, deviceId) {
   return (result.results || []).map((row) => row.id);
 }
 
+/**
+ * How many ids go into one `IN (...)`.
+ *
+ * D1 inherits SQLite's bind-parameter ceiling, and a single statement that
+ * exceeds it fails outright rather than degrading — so a device clearing its
+ * whole watchlist was the case most likely to break. 50 leaves a wide margin
+ * under any plausible limit, and the chunks run in one `batch()`, so the cost
+ * of a small chunk size is a longer statement list, not more round trips.
+ */
+const DELETE_CHUNK = 50;
+
 export async function deleteProducts(env, deviceId, ids) {
-  const placeholders = ids.map(() => '?').join(',');
-  return env.DB.batch([
-    env.DB.prepare(`DELETE FROM products WHERE device_id = ? AND id IN (${placeholders})`).bind(
-      deviceId,
-      ...ids
-    ),
-    env.DB.prepare(`DELETE FROM prices WHERE device_id = ? AND product_id IN (${placeholders})`).bind(
-      deviceId,
-      ...ids
-    ),
-  ]);
+  const statements = [];
+
+  for (let i = 0; i < ids.length; i += DELETE_CHUNK) {
+    const chunk = ids.slice(i, i + DELETE_CHUNK);
+    const placeholders = chunk.map(() => '?').join(',');
+
+    statements.push(
+      env.DB.prepare(`DELETE FROM products WHERE device_id = ? AND id IN (${placeholders})`).bind(
+        deviceId,
+        ...chunk
+      ),
+      env.DB.prepare(
+        `DELETE FROM prices WHERE device_id = ? AND product_id IN (${placeholders})`
+      ).bind(deviceId, ...chunk)
+    );
+  }
+
+  if (!statements.length) return [];
+  return env.DB.batch(statements);
 }
 
 export async function pricesSince(env, deviceId, since, limit) {

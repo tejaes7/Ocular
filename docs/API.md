@@ -108,6 +108,7 @@ the worker up and every other route 500ing. Use this as the uptime probe.
 // Request
 {
   "since": 1768900000000,        // only return prices newer than this
+  "complete": true,              // "products" is my ENTIRE watchlist — see below
   "products": [
     {
       "id": "p1a2b3",            // stable hash of canonicalUrl
@@ -124,7 +125,9 @@ the worker up and every other route 500ing. Use this as the uptime probe.
 // Response 200
 {
   "ok": true,
-  "serverTime": 1769000000000,
+  "serverTime": 1769000000000,   // the server's clock — for display, NOT for syncing
+  "nextSince": 1769000000000,    // send this back as "since" next time
+  "truncated": false,            // true = more price rows are waiting; sync again
   "tracking": 1,
   "linked": false,               // is this device attached to an account? (see /link)
   "prices": {
@@ -138,17 +141,36 @@ the worker up and every other route 500ing. Use this as the uptime probe.
 `linked` is **reported here, never changed here.** Creating the join stays
 confined to `/link`, so `/sync` remains a route that sees only a device.
 
-| Status | Meaning |
-|---|---|
-| 400 | Body was not JSON |
-| 401 | Missing or malformed device token |
-| 404 | Unknown route, or `/sync` called with the wrong method |
+| Status | Code | Meaning |
+|---|---|---|
+| 400 | `BAD_REQUEST` | Body was not JSON |
+| 401 | `UNAUTHORIZED` | Missing or malformed device token |
+| 404 | `NOT_FOUND` | Unknown route, or `/sync` called with the wrong method |
+| 413 | `TOO_MANY_PRODUCTS` | Watchlist is over the 200-product cap. **Nothing was written or deleted.** |
+| 429 | `RATE_LIMITED` | Over budget. Honour the `Retry-After` header. |
 
 ### Semantics that are easy to get wrong
 
-- **The watchlist is replaced, not merged.** Anything the device stops sending
-  stops being checked. Otherwise removing a product in the browser would leave
-  the server hammering a retailer for it forever.
+- **`complete` is what licenses deletion.** The watchlist is replaced, not
+  merged: anything the device stops sending stops being checked, or removing a
+  product in the browser would leave the server hammering a retailer for it
+  forever. But that reconciliation is only sound when the payload really is the
+  whole list, so the server does it **only when `complete: true` is present.**
+  Without the flag it writes what you sent and deletes nothing — the safe
+  reading of a partial payload.
+
+- **Over the cap is an error, not a truncation.** Sending 250 products used to
+  save the first 200 and delete the other 50 *along with their price history*,
+  because the reconcile pass could not tell "the user removed this" from "the
+  server trimmed this". It now refuses the whole request and changes nothing.
+
+- **Page prices with `nextSince`, never with `serverTime`.** A response carries
+  at most 5000 price rows. When `truncated` is true, `nextSince` is the timestamp
+  of the last row actually sent, and sending it back resumes exactly there.
+  Advancing to `serverTime` instead — which the client used to do
+  unconditionally — marks the un-sent rows as already read, and they are never
+  requested again. Keep calling `/sync` while `truncated` is true to drain the
+  backlog.
 - **Never send prices upward.** The extension pushes only what the server needs
   to fetch a page. Price history stays on the device.
 - **Server prices are advisory.** The extension merges them via `mergeHistory()`
