@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { X, CheckCircle2 } from 'lucide-react';
 import Logo from './Logo';
 import { useAuth } from '../auth/AuthContext.jsx';
 
@@ -163,10 +163,6 @@ export default function AuthModal({ isOpen, onClose }) {
                 </p>
               )}
 
-              <div className="flex items-center gap-2 text-[10px] theme-text-subtle justify-center pt-2">
-                <ShieldCheck size={13} className="theme-accent-text" />
-                <span>Secure OAuth 2.0 Google Authentication</span>
-              </div>
             </div>
           )}
 

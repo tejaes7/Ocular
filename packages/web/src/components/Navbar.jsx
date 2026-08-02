@@ -3,7 +3,7 @@ import Logo from './Logo';
 import { useAuth } from '../auth/AuthContext.jsx';
 
 export default function Navbar({ onOpenAuth }) {
-  const { user, profile, ready, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const displayName = profile?.name || user?.displayName || user?.email || '';
 
   return (
@@ -15,10 +15,15 @@ export default function Navbar({ onOpenAuth }) {
           <Logo size="md" />
         </a>
 
-        {/* Auth Buttons. Rendered only once Firebase has reported the restored
-            session, so a signed-in visitor never sees "Login" flash on reload. */}
+        {/* Auth Buttons.
+            These used to be gated on a `ready` flag that only flips once Firebase
+            reports a restored session — which meant that if Firebase was slow,
+            blocked by an extension, or offline, the flag never flipped and BOTH
+            branches rendered nothing, so the buttons vanished with no error.
+            Signed-out is now the default: worst case a signed-in visitor sees
+            "Login" for a frame, which is far better than an empty header. */}
         <div className="flex items-center gap-3">
-          {!ready ? null : user ? (
+          {user ? (
             <>
               <button
                 onClick={() => onOpenAuth && onOpenAuth('login')}

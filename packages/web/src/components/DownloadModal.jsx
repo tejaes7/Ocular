@@ -73,7 +73,7 @@ Ocular will automatically start tracking prices across supported e-commerce stor
           {/* Download Action */}
           <button
             onClick={handleDownloadPackage}
-            className="w-full py-3.5 px-6 rounded-xl theme-accent-bg theme-accent-bg-hover text-white font-bold text-base flex items-center justify-center gap-3 shadow-lg transition-all duration-200"
+            className="w-full py-3.5 px-6 rounded-xl theme-accent-bg theme-accent-bg-hover font-bold text-base flex items-center justify-center gap-3 shadow-lg transition-all duration-200"
           >
             <Download size={20} />
             Download Ocular Package (.zip / setup)

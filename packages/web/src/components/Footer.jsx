@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Logo from './Logo';
-import { FileText, HelpCircle, Mail, CheckCircle2, X, Code2 } from 'lucide-react';
+import { FileText, HelpCircle, Mail, CheckCircle2, X } from 'lucide-react';
+import { FacebookIcon, InstagramIcon, XIcon } from './SocialIcons';
 
 export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -25,25 +25,28 @@ export default function Footer() {
           
           {/* Col 1: Brand Info */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Clean Logo directly on footer background with white text */}
-            <div className="inline-block">
-              <Logo size="md" textColor="text-[#14283f]" />
-            </div>
             <p className="text-xs text-[#14283f]/80 leading-relaxed max-w-sm">
               Ocular is your automated e-commerce price tracking assistant. Get notified when your bookmarked items hit their all-time lowest price.
             </p>
-            
-            {/* Social Icons */}
+
+            {/* Social Icons. Placeholder destinations — swap in the real handles. */}
             <div className="flex items-center gap-3 pt-1">
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noreferrer"
-                className="w-9 h-9 rounded-xl bg-[#14283f]/10 hover:bg-[#14283f]/20 border border-[#14283f]/20 text-[#14283f] flex items-center justify-center transition-colors"
-                aria-label="GitHub"
-              >
-                <Code2 size={18} />
-              </a>
+              {[
+                { label: 'Facebook', href: 'https://facebook.com', Icon: FacebookIcon },
+                { label: 'X', href: 'https://x.com', Icon: XIcon },
+                { label: 'Instagram', href: 'https://instagram.com', Icon: InstagramIcon },
+              ].map(({ label, href, Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-9 h-9 rounded-xl bg-[#14283f]/10 hover:bg-[#14283f]/20 border border-[#14283f]/20 text-[#14283f] flex items-center justify-center transition-colors"
+                  aria-label={label}
+                >
+                  <Icon />
+                </a>
+              ))}
             </div>
           </div>
 

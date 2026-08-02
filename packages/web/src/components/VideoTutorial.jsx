@@ -41,7 +41,7 @@ export default function VideoTutorial({ onOpenDownload }) {
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
           className="max-w-4xl mx-auto relative group"
         >
-          <div className="relative rounded-3xl glass-panel p-3 sm:p-5 theme-border border shadow-2xl overflow-hidden transition-all duration-300">
+          <div className="relative rounded-3xl glass-panel p-3 sm:p-5 theme-border border shadow-[0_18px_50px_-24px_rgba(20,40,63,0.35)] overflow-hidden transition-[transform,box-shadow] duration-300">
             
             {/* Video Thumbnail Screen */}
             <div className="relative h-64 sm:h-96 w-full rounded-2xl theme-bg-muted overflow-hidden flex items-center justify-center theme-border border">
@@ -57,7 +57,7 @@ export default function VideoTutorial({ onOpenDownload }) {
               {/* Play Overlay Button */}
               <button
                 onClick={() => setIsVideoOpen(true)}
-                className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full theme-accent-bg flex items-center justify-center text-white shadow-2xl group-hover:scale-110 transition-transform duration-200 cursor-pointer"
+                className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full theme-accent-bg flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-200 cursor-pointer"
                 aria-label="Play Tutorial Video"
               >
                 <Play size={36} className="ml-1 fill-white stroke-none" />
@@ -69,7 +69,7 @@ export default function VideoTutorial({ onOpenDownload }) {
                   <Sparkles size={13} className="theme-accent-text" /> Ocular Extension Tutorial
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-lg theme-accent-bg text-white text-xs font-mono font-medium">
+                  <span className="px-2.5 py-1 rounded-lg theme-accent-bg text-xs font-mono font-medium">
                     1080p HD
                   </span>
                   <span className="px-2.5 py-1 rounded-lg bg-black/60 text-white text-xs font-mono">
@@ -81,7 +81,7 @@ export default function VideoTutorial({ onOpenDownload }) {
               {/* Bottom Video Bar Info */}
               <div className="absolute bottom-4 left-4 right-4 z-10 bg-black/70 backdrop-blur-md p-3 sm:p-4 rounded-xl border border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl theme-accent-bg text-white flex items-center justify-center font-semibold text-xs">
+                  <div className="w-9 h-9 rounded-xl theme-accent-bg flex items-center justify-center font-semibold text-xs">
                     OC
                   </div>
                   <div>
@@ -92,7 +92,7 @@ export default function VideoTutorial({ onOpenDownload }) {
 
                 <button
                   onClick={() => setIsVideoOpen(true)}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg theme-accent-bg text-white font-semibold text-xs hover:opacity-90 transition-colors cursor-pointer"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg theme-accent-bg font-semibold text-xs hover:opacity-90 transition-colors cursor-pointer"
                 >
                   <Play size={13} className="fill-white" /> Watch Now
                 </button>
@@ -152,7 +152,7 @@ export default function VideoTutorial({ onOpenDownload }) {
                         setIsVideoOpen(false);
                         onOpenDownload();
                       }}
-                      className="px-5 py-2.5 rounded-xl theme-accent-bg text-white font-semibold text-xs flex items-center gap-2 cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl theme-accent-bg font-semibold text-xs flex items-center gap-2 cursor-pointer"
                     >
                       <ChromeIcon size={16} /> Download Extension Package
                     </button>

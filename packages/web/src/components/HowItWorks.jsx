@@ -51,7 +51,7 @@ export default function HowItWorks({ onOpenDownload }) {
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="py-20 bg-transparent border-t theme-border relative z-20 transform-gpu"
+      className="py-16 sm:py-20 lg:py-24 bg-transparent border-t theme-border relative z-20 transform-gpu"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
         
@@ -61,7 +61,7 @@ export default function HowItWorks({ onOpenDownload }) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-          className="text-center max-w-3xl mx-auto space-y-3 mb-14"
+          className="text-center max-w-3xl mx-auto space-y-3 mb-12 sm:mb-14 lg:mb-16"
         >
           <h2 className="text-3xl sm:text-5xl font-semibold theme-text-main tracking-tight">
             How <span className="theme-accent-text">Ocular</span> Works
@@ -72,7 +72,7 @@ export default function HowItWorks({ onOpenDownload }) {
         </motion.div>
 
         {/* 3 Step Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
           {steps.map((step, idx) => {
             const Icon = step.icon;
             const isActive = activeStep === idx;
@@ -85,7 +85,7 @@ export default function HowItWorks({ onOpenDownload }) {
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 * idx }}
                 onClick={() => setActiveStep(idx)}
-                className={`relative rounded-3xl p-6 glass-card backdrop-blur-sm border transition-[transform,box-shadow,border-color] duration-300 flex flex-col justify-between transform-gpu hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl ${
+                className={`relative rounded-3xl p-6 sm:p-7 glass-card backdrop-blur-sm border transition-[transform,box-shadow,border-color] duration-300 flex flex-col justify-between transform-gpu hover:scale-[1.03] hover:-translate-y-1 hover:shadow-2xl ${
                   isActive
                     ? 'theme-border border shadow-xl'
                     : 'theme-border hover:opacity-95'
@@ -93,7 +93,7 @@ export default function HowItWorks({ onOpenDownload }) {
               >
                 {/* Step Number Badge */}
                 <div className="flex items-center justify-between mb-5">
-                  <div className="w-12 h-12 rounded-2xl theme-accent-bg p-0.5 shadow-md flex items-center justify-center text-white">
+                  <div className="w-12 h-12 rounded-2xl theme-accent-bg p-0.5 shadow-md flex items-center justify-center">
                     <Icon size={22} />
                   </div>
                   <span className="text-3xl font-medium theme-text-subtle font-mono">
@@ -101,12 +101,18 @@ export default function HowItWorks({ onOpenDownload }) {
                   </span>
                 </div>
 
-                {/* Content */}
-                <div className="space-y-2 mb-5">
-                  <span className="text-[11px] font-medium px-2.5 py-1 rounded-full theme-accent-bg-soft theme-accent-text border theme-border">
-                    {step.badge}
-                  </span>
-                  <h3 className="text-lg font-semibold theme-text-main leading-snug">
+                {/* Content.
+                    The badge is an inline element, so `space-y` on the parent
+                    never applied to it — it sat flush against the heading below.
+                    It now lives in its own block with explicit spacing, which is
+                    what separates the three tiers: badge / title / description. */}
+                <div className="mb-5">
+                  <div className="mb-3">
+                    <span className="inline-block text-[11px] font-medium px-2.5 py-1 rounded-full theme-accent-bg-soft theme-accent-text border theme-border">
+                      {step.badge}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-semibold theme-text-main leading-snug mb-2">
                     {step.title}
                   </h3>
                   <p className="text-xs theme-text-muted font-light leading-relaxed">
@@ -134,11 +140,11 @@ export default function HowItWorks({ onOpenDownload }) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-          className="mt-12 text-center"
+          className="mt-12 sm:mt-14 text-center"
         >
           <button
             onClick={onOpenDownload}
-            className="px-8 py-3.5 rounded-2xl theme-accent-bg theme-accent-bg-hover text-white font-semibold text-sm inline-flex items-center gap-3 shadow-lg cursor-pointer transform hover:-translate-y-1 hover:shadow-2xl transition-all duration-200"
+            className="px-8 py-3.5 rounded-2xl theme-accent-bg theme-accent-bg-hover font-semibold text-sm inline-flex items-center gap-3 shadow-lg cursor-pointer transform hover:-translate-y-1 hover:shadow-2xl transition-all duration-200"
           >
             <span>Get Started with Ocular</span>
             <ArrowRight size={18} />
