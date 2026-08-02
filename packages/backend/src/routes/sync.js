@@ -11,6 +11,7 @@
 import { deviceIdFrom, fail, json } from '../lib/http.js';
 import {
   deleteProducts,
+  isDeviceLinked,
   listProductIds,
   pricesSince,
   touchDevice,
@@ -77,5 +78,10 @@ export async function handleSync(request, env) {
     });
   }
 
-  return json({ ok: true, serverTime: now, tracking: keep.size, prices });
+  // Reported, not accepted: /sync can tell the extension whether this device is
+  // linked, but it can never change that. Creating the join stays confined to
+  // /link, which is the one route that sees both identities.
+  const linked = await isDeviceLinked(env, deviceId);
+
+  return json({ ok: true, serverTime: now, tracking: keep.size, prices, linked });
 }

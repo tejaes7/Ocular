@@ -19,7 +19,7 @@ import { evaluateAlert } from '@ocular/shared/alerts';
 import { downloadBackup } from './lib/backup.js';
 import { isPlausibleReading, summarizeHistory } from '@ocular/shared/history';
 import { canonicalizeUrl, siteLabel } from '@ocular/shared/sites';
-import { runSync, syncConfigured } from './lib/sync.js';
+import { pairUrl as buildPairUrl, runSync, syncConfigured, unlinkDevice } from './lib/sync.js';
 import {
   appendPricePoint,
   getHistory,
@@ -498,6 +498,23 @@ const handlers = {
 
   async syncNow() {
     return syncIfEnabled();
+  },
+
+  /**
+   * Where to send someone to turn on email alerts.
+   *
+   * The extension cannot create the link itself: `/link` needs a Firebase token
+   * alongside the device id, and there is no sign-in here by design. The website
+   * is already signed in, so it finishes the job.
+   */
+  async pairUrl() {
+    const url = await buildPairUrl(await getSettings());
+    return url ? { ok: true, url } : { ok: false, error: 'No Ocular site is configured.' };
+  },
+
+  /** Turning alerts off needs only the device token — see lib/sync.js. */
+  async unlinkEmailAlerts() {
+    return unlinkDevice(await getSettings());
   },
 
   async settingsChanged() {

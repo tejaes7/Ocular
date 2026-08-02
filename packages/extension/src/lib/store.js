@@ -41,6 +41,18 @@ export const SCHEMA_VERSION = 3;
  */
 export const DEFAULT_SYNC_ENDPOINT = '';
 
+/**
+ * The Ocular website, used to pair this browser with an account for email
+ * alerts (`<site>/?pair=<deviceId>`).
+ *
+ * The extension deliberately has no sign-in of its own. Adding one would mean an
+ * OAuth client id, the `identity` permission, and working around Firebase's JS
+ * SDK not functioning inside an MV3 service worker — to duplicate auth the
+ * website already has. Handing the device id to a page that is already signed in
+ * is the whole flow.
+ */
+export const DEFAULT_SITE_URL = '';
+
 const SETTINGS_KEY = 'settings';
 const PRODUCTS_KEY = 'products';
 const HOSTS_KEY = 'hosts';
@@ -87,6 +99,16 @@ export const DEFAULT_SETTINGS = {
     // page showed the switch on — a settings screen that lies about its state.
     enabled: Boolean(DEFAULT_SYNC_ENDPOINT),
     endpoint: DEFAULT_SYNC_ENDPOINT,
+
+    // Where to send someone to turn on email alerts. Not a credential and not
+    // per-user — the device id is appended at the moment the tab is opened.
+    siteUrl: DEFAULT_SITE_URL,
+
+    // Mirrors the server's `devices.user_id`, refreshed on every sync. Local
+    // only so the options page can render without a round trip; the server is
+    // authoritative, because a device unlinked from the website must not keep
+    // showing "on" here forever.
+    linked: false,
   },
 
   // AI is out of scope for now; the pipeline never calls it while provider is 'off'.

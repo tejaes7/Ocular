@@ -16,6 +16,7 @@ const fields = {
   backupDays: $('backup-days'),
   syncEnabled: $('sync-enabled'),
   syncEndpoint: $('sync-endpoint'),
+  siteUrl: $('sync-site'),
 };
 
 const send = async (message) => {
@@ -48,24 +49,113 @@ async function load() {
   fields.backupDays.value = settings.backupIntervalDays;
   fields.syncEnabled.checked = Boolean(settings.sync?.enabled);
   fields.syncEndpoint.value = settings.sync?.endpoint || '';
+  fields.siteUrl.value = settings.sync?.siteUrl || '';
 
   $('wordmark').insertAdjacentHTML('afterbegin', eyeMark);
   $('version').textContent = `v${chrome.runtime.getManifest().version}`;
   $('device-id').textContent = await getDeviceId();
 
   syncNestedState();
+  renderEmailAlerts(settings);
   await loadDiagnostics();
 }
+
+// ---------------------------------------------------------------------------
+// Email alerts
+// ---------------------------------------------------------------------------
+
+/**
+ * The state shown here is the server's, cached at the last sync — a device can
+ * be unlinked from the website, and a locally remembered "on" would then be a
+ * lie. The device-id hint changes with it, because "anonymous, not linked to
+ * any account" stops being true the moment this is on.
+ */
+function renderEmailAlerts(settings) {
+  const linked = Boolean(settings.sync?.linked);
+  const configured = Boolean(settings.sync?.enabled && settings.sync?.endpoint);
+  const hasSite = Boolean(settings.sync?.siteUrl);
+
+  $('email-alerts-state').textContent = linked ? 'Email alerts are on' : 'Email alerts are off';
+  $('email-alerts-toggle').textContent = linked ? 'Turn off' : 'Turn on…';
+  $('email-alerts-toggle').disabled = !configured || (!hasSite && !linked);
+
+  $('device-id-hint').textContent = linked
+    ? 'Generated locally. Currently linked to your account for email alerts.'
+    : 'Generated locally. Anonymous, not linked to any account.';
+
+  const hint = $('email-alerts-hint');
+  if (!configured) {
+    hint.textContent = 'Turn on background sync first — alerts are sent by the server.';
+  } else if (!hasSite && !linked) {
+    hint.textContent = 'No Ocular site is configured for this build, so there is nowhere to sign in.';
+  } else if (linked) {
+    hint.textContent = 'Turning this off unlinks this browser and stops the emails.';
+  } else {
+    hint.textContent = 'Opens the Ocular site so you can sign in and confirm.';
+  }
+}
+
+$('email-alerts-toggle').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const status = $('email-alerts-status');
+  const settings = await getSettings();
+
+  if (settings.sync?.linked) {
+    button.disabled = true;
+    setStatus(status, 'Turning off…');
+
+    const result = await send({ type: 'unlinkEmailAlerts' });
+    button.disabled = false;
+
+    if (result.ok) {
+      setStatus(status, 'Email alerts are off. This browser is no longer linked.', 'good');
+      renderEmailAlerts(await getSettings());
+    } else {
+      setStatus(status, `Could not turn off: ${result.error}`, 'bad');
+    }
+    return;
+  }
+
+  // Linking needs a Firebase token the extension does not have, so the website
+  // finishes it. The state here updates on the next sync, not on tab close —
+  // the server is what actually knows whether it worked.
+  const result = await send({ type: 'pairUrl' });
+  if (!result.ok || !result.url) {
+    setStatus(status, result.error || 'No Ocular site is configured.', 'bad');
+    return;
+  }
+
+  chrome.tabs.create({ url: result.url });
+  setStatus(status, 'Finish signing in on the Ocular site, then press “Sync now”.');
+});
 
 function syncNestedState() {
   fields.tabIdle.disabled = !fields.tabChecks.checked;
   fields.backupDays.disabled = !fields.autoBackup.checked;
   fields.syncEndpoint.disabled = !fields.syncEnabled.checked;
+  fields.siteUrl.disabled = !fields.syncEnabled.checked;
 }
 
 fields.tabChecks.addEventListener('change', syncNestedState);
 fields.autoBackup.addEventListener('change', syncNestedState);
 fields.syncEnabled.addEventListener('change', syncNestedState);
+
+/**
+ * Build the `sync` object from the form, preserving what the form does not own.
+ *
+ * saveSettings replaces `sync` wholesale, so rebuilding it from the three inputs
+ * would drop `linked` — the cached link state — on every press of Save, and the
+ * email alerts row would flip back to "off" until the next sync corrected it.
+ */
+async function syncSettingsFromForm() {
+  const stored = (await getSettings()).sync;
+  return {
+    ...stored,
+    enabled: fields.syncEnabled.checked,
+    endpoint: fields.syncEndpoint.value.trim().replace(/\/$/, ''),
+    siteUrl: fields.siteUrl.value.trim().replace(/\/$/, ''),
+  };
+}
 
 $('save').addEventListener('click', async () => {
   await saveSettings({
@@ -77,10 +167,7 @@ $('save').addEventListener('click', async () => {
     minDropPercentToNotify: Number(fields.minDrop.value) || 0,
     autoBackup: fields.autoBackup.checked,
     backupIntervalDays: Math.max(1, Number(fields.backupDays.value) || 7),
-    sync: {
-      enabled: fields.syncEnabled.checked,
-      endpoint: fields.syncEndpoint.value.trim().replace(/\/$/, ''),
-    },
+    sync: await syncSettingsFromForm(),
   });
 
   // The alarm period lives in the service worker; ask it to reschedule.
@@ -151,15 +238,16 @@ $('sync-now').addEventListener('click', async (event) => {
   // Persist first: syncing against an endpoint the user typed but hasn't saved
   // would silently do nothing.
   await saveSettings({
-    sync: {
-      enabled: fields.syncEnabled.checked,
-      endpoint: fields.syncEndpoint.value.trim().replace(/\/$/, ''),
-    },
+    sync: await syncSettingsFromForm(),
   });
   await send({ type: 'settingsChanged' });
 
   const result = await send({ type: 'syncNow' });
   button.disabled = false;
+
+  // A sync is what refreshes the link state, so this is the moment the email
+  // alerts row can stop being stale — including after pairing on the website.
+  renderEmailAlerts(await getSettings());
 
   if (result.ok) {
     setStatus(

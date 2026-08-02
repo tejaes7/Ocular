@@ -176,6 +176,20 @@ export async function recordAlertSent(env, product, { now, price }) {
     .run();
 }
 
+/**
+ * Is this device attached to an account?
+ *
+ * Returned by /sync so the extension's options page can state the real link
+ * state rather than a local guess. The link is server-side, so a device that
+ * was unlinked from the website would otherwise keep showing "on" forever.
+ */
+export async function isDeviceLinked(env, deviceId) {
+  const row = await env.DB.prepare('SELECT user_id FROM devices WHERE id = ?')
+    .bind(deviceId)
+    .first();
+  return Boolean(row?.user_id);
+}
+
 /** Attach a device to an account, or detach it when userId is null. */
 export async function linkDeviceToUser(env, deviceId, userId, now) {
   return env.DB.prepare(

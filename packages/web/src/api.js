@@ -81,6 +81,34 @@ export async function getCurrentUser(token) {
   return { user: body.user ?? null, isNew: Boolean(body.isNew) };
 }
 
+/**
+ * Attach a browser's watchlist to the signed-in account, so price drops found
+ * while that browser is closed can be emailed.
+ *
+ * This is the one call in the product that joins the two identities — it needs
+ * the Firebase token *and* the extension's device id together, which is exactly
+ * why the extension hands the device id to this page rather than doing it
+ * itself. See the identity section of docs/API.md.
+ */
+export async function linkDevice(token, deviceId) {
+  return request('/link', {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId }),
+  });
+}
+
+/** Detach it again. Same route, and the extension can also do this on its own. */
+export async function unlinkDevice(token, deviceId) {
+  return request('/link', {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId, unlink: true }),
+  });
+}
+
 /** Liveness probe — the worker checks D1 readiness and 503s when degraded. */
 export function getHealth() {
   return request('/health', { method: 'GET' });

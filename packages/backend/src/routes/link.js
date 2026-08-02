@@ -26,7 +26,7 @@
  */
 
 import { verifyFirebaseToken } from '../auth/verifyFirebase.js';
-import { bearerTokenFrom, fail, isDeviceId, json } from '../lib/http.js';
+import { bearerTokenFrom, deviceIdFrom, fail, isDeviceId, json } from '../lib/http.js';
 import { findUserByFirebaseUID, upsertUser } from '../db/users.js';
 import { linkDeviceToUser } from '../db/queries.js';
 
@@ -35,19 +35,40 @@ import { linkDeviceToUser } from '../db/queries.js';
  * Google's JWKS endpoint. Production callers pass nothing.
  */
 export async function handleLink(request, env, verify = verifyFirebaseToken) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return fail('BAD_REQUEST', 'Body must be JSON', 400);
+  }
+
+  // Unlinking needs only proof that you hold the device.
+  //
+  // Detaching is a de-escalation: it removes the join, it can never create one,
+  // and it discloses nothing. Requiring the account token to undo what the
+  // account token created would strand anyone locked out of their Google
+  // account with a link they cannot remove — and "you can turn this off" is a
+  // promise the privacy page makes, so it has to hold even then.
+  //
+  // No ambiguity between the two auth modes: deviceIdFrom only matches a bare
+  // UUID, and a Firebase ID token is never that shape.
+  const deviceBearer = deviceIdFrom(request);
+  if (body?.unlink === true && deviceBearer) {
+    try {
+      await linkDeviceToUser(env, deviceBearer, null, Date.now());
+      return json({ ok: true, linked: false });
+    } catch (error) {
+      console.error('[Link] Could not unlink device:', error?.message ?? error);
+      return fail('PERSIST_FAILED', 'Could not unlink this device', 500);
+    }
+  }
+
   const bearer = bearerTokenFrom(request);
   if (bearer.error === 'MISSING') {
     return fail('MISSING_AUTH_HEADER', 'Authorization header missing', 401);
   }
   if (bearer.error === 'MALFORMED') {
     return fail('MALFORMED_AUTH_HEADER', 'Expected an Authorization: Bearer <token> header', 401);
-  }
-
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return fail('BAD_REQUEST', 'Body must be JSON', 400);
   }
 
   // The same strict UUID shape `/sync` enforces. Anything guessable or
@@ -70,8 +91,8 @@ export async function handleLink(request, env, verify = verifyFirebaseToken) {
   const now = Date.now();
 
   try {
-    // Detach. Requires a valid token so only the signed-in person can do it, but
-    // does not need the account to exist any more.
+    // Detach from the account side — the website's "turn off email alerts".
+    // The device-token path above covers the extension, which has no token.
     if (body.unlink === true) {
       await linkDeviceToUser(env, deviceId, null, now);
       return json({ ok: true, linked: false });

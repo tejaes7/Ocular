@@ -126,6 +126,7 @@ the worker up and every other route 500ing. Use this as the uptime probe.
   "ok": true,
   "serverTime": 1769000000000,
   "tracking": 1,
+  "linked": false,               // is this device attached to an account? (see /link)
   "prices": {
     "p1a2b3": [
       { "ts": 1768950000000, "price": 4499, "inStock": true, "source": "server" }
@@ -133,6 +134,9 @@ the worker up and every other route 500ing. Use this as the uptime probe.
   }
 }
 ```
+
+`linked` is **reported here, never changed here.** Creating the join stays
+confined to `/link`, so `/sync` remains a route that sees only a device.
 
 | Status | Meaning |
 |---|---|
@@ -211,23 +215,32 @@ Attaches a device's watchlist to an account so the worker can email price drops
 found while the browser is closed. **This is the only route that joins the two
 identities** — read the identity section above before changing it.
 
+**Creating** the link needs both credentials at once. **Removing** it needs only
+the device.
+
 ```
+// Link, or unlink from the website
 Authorization: Bearer <firebase-id-token>
 Content-Type: application/json
+
+{ "deviceId": "3f0c1e2a-...", "unlink": false }
 ```
 
-```jsonc
-// Request
-{
-  "deviceId": "3f0c1e2a-...",   // required, same strict UUID shape as /sync
-  "unlink": false               // optional; true detaches and returns immediately
-}
+```
+// Unlink from the extension, which holds no Firebase token
+Authorization: Bearer <device-uuid>
+Content-Type: application/json
+
+{ "unlink": true }
 ```
 
 ```jsonc
 // Response 200
 { "ok": true, "linked": true, "email": "shopper@example.com" }
 ```
+
+The two auth modes cannot be confused: the device bearer must be a bare UUID,
+and a Firebase ID token is never that shape.
 
 | Code | Status | Meaning |
 |---|---|---|
@@ -240,18 +253,22 @@ Content-Type: application/json
 
 Things that are load-bearing here:
 
-- **Both credentials are required in one call.** A device token alone cannot
-  attach an account, and an account token alone cannot claim a device. Neither
-  side can be joined on the user's behalf by a caller holding only one.
-- **Reversible, and reversal needs only the account token.** `unlink` does not
-  require the account to still exist.
+- **Both credentials are required to create the link.** A device token alone
+  cannot attach an account, and an account token alone cannot claim a device.
+  Neither side can be joined on the user's behalf by a caller holding only one.
+- **Removing it needs only the device token.** Detaching is a de-escalation — it
+  can never create a join and discloses nothing — so requiring account access to
+  undo it would strand anyone locked out of their Google account with a link
+  they cannot remove. The privacy page promises this can be turned off, which
+  means it has to hold in that case too.
 - **Accounts with no email are rejected rather than linked.** Phone and anonymous
   sign-in mint valid tokens with no email claim; linking one produces a link that
   can never deliver anything.
-- **No client can reach this yet.** The extension has no Firebase sign-in — auth
-  lives in `packages/web` — so the device UUID and the ID token are currently
-  never in the same place. Until that is bridged, this route is reachable but
-  nothing calls it and no email can send.
+- **The extension never signs in.** It opens `<site>/?pair=<deviceId>` and the
+  website — already authenticated — makes this call. That avoids an OAuth client
+  id, the `identity` permission, and working around Firebase's JS SDK not
+  functioning inside an MV3 service worker, to duplicate auth the site already
+  has. `/sync` reports `linked` back so the extension can show the real state.
 
 ---
 

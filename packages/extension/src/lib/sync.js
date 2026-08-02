@@ -12,12 +12,74 @@
  */
 
 import { isPlausibleReading, mergeHistory, summarizeHistory } from '@ocular/shared/history';
-import { getDeviceId, getHistory, getMeta, listProducts, saveMeta, setHistory } from './store.js';
+import {
+  getDeviceId,
+  getHistory,
+  getMeta,
+  listProducts,
+  saveMeta,
+  saveSettings,
+  setHistory,
+} from './store.js';
 
 const SYNC_TIMEOUT_MS = 15000;
 
 export function syncConfigured(settings) {
   return Boolean(settings?.sync?.enabled && settings.sync.endpoint);
+}
+
+// ---------------------------------------------------------------------------
+// Email alerts: pairing this browser with an account
+// ---------------------------------------------------------------------------
+
+/**
+ * The page that turns email alerts on.
+ *
+ * The extension cannot make this link itself — it holds the device id but has
+ * no Firebase token, and `/link` requires both together. So it hands the device
+ * id to the website, which is already signed in. Returns null when there is no
+ * site configured to send anyone to.
+ */
+export async function pairUrl(settings) {
+  const site = settings?.sync?.siteUrl?.replace(/\/$/, '');
+  if (!site) return null;
+  return `${site}/?pair=${await getDeviceId()}`;
+}
+
+/**
+ * Turn email alerts off from this side.
+ *
+ * Unlinking needs only the device token, which is the whole reason the extension
+ * can do it alone: detaching is a de-escalation, and requiring an account token
+ * to undo it would strand anyone locked out of their Google account with a link
+ * they cannot remove.
+ */
+export async function unlinkDevice(settings) {
+  if (!settings?.sync?.endpoint) return { ok: false, error: 'Sync is not configured.' };
+
+  const endpoint = settings.sync.endpoint.replace(/\/$/, '');
+  const deviceId = await getDeviceId();
+
+  try {
+    const response = await fetch(`${endpoint}/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deviceId}` },
+      body: JSON.stringify({ unlink: true }),
+    });
+
+    if (!response.ok) return { ok: false, error: `Server responded ${response.status}` };
+  } catch (error) {
+    return { ok: false, error: String(error.message || error) };
+  }
+
+  await rememberLinkState(settings, false);
+  return { ok: true };
+}
+
+/** The server owns this state; we only cache it so the UI can render offline. */
+async function rememberLinkState(settings, linked) {
+  if (settings.sync.linked === linked) return;
+  await saveSettings({ sync: { ...settings.sync, linked } });
 }
 
 /**
@@ -83,7 +145,11 @@ export async function runSync(settings) {
   const { added, catchUp } = await applyServerPrices(payload.prices || {});
   await saveMeta({ lastSyncAt: payload.serverTime || Date.now() });
 
-  return { ok: true, pulled: added, tracking: payload.tracking, catchUp };
+  // Refreshed every sync, because the link can be removed from the website and
+  // this side would otherwise keep claiming email alerts are on.
+  await rememberLinkState(settings, payload.linked === true);
+
+  return { ok: true, pulled: added, tracking: payload.tracking, catchUp, linked: payload.linked === true };
 }
 
 /**
