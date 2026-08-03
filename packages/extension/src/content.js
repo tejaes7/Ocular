@@ -97,7 +97,41 @@ function renderButton({ tracked }) {
   // hovering an unfamiliar dot, aria-label is for everyone else.
   button.setAttribute('aria-label', name);
   button.title = name;
-  button.innerHTML = '<span class="ocular-btn__eye" aria-hidden="true"></span>';
+  // The brand mark, not the CSS-drawn eye it used to be. Loaded from the
+  // extension's own resources, which is why it is listed under
+  // web_accessible_resources in the manifest.
+  //
+  // Two ways this can fail, and both used to leave an empty circle on the page:
+  // getURL() throws once the extension has been reloaded and this script is
+  // orphaned, and a retailer with a strict img-src CSP can refuse to load a
+  // chrome-extension:// URL at all. Either way the badge falls back to the
+  // CSS-drawn eye rather than rendering as nothing.
+  const eye = () => {
+    const span = document.createElement('span');
+    span.className = 'ocular-btn__eye';
+    span.setAttribute('aria-hidden', 'true');
+    return span;
+  };
+
+  let markUrl = null;
+  try {
+    markUrl = chrome.runtime.getURL('icons/ocular-mark.png');
+  } catch {
+    markUrl = null;
+  }
+
+  if (markUrl) {
+    const mark = document.createElement('img');
+    mark.className = 'ocular-btn__mark';
+    mark.src = markUrl;
+    mark.alt = '';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.draggable = false;
+    mark.addEventListener('error', () => mark.replaceWith(eye()), { once: true });
+    button.replaceChildren(mark);
+  } else {
+    button.replaceChildren(eye());
+  }
 
   // The badge is only an entry point now — every action lives in the panel.
   // It previously tracked the product outright when untracked, which meant the
@@ -117,6 +151,22 @@ function renderButton({ tracked }) {
   });
 }
 
+/**
+ * Flip the badge between "not tracked" and "watching" without rebuilding it.
+ *
+ * Re-rendering would drop the element the drag module is managing, so the badge
+ * would jump back to the corner every time its state resolved.
+ */
+function setButtonState({ tracked }) {
+  const button = document.getElementById(BUTTON_ID);
+  if (!button) return;
+
+  const name = tracked ? 'Ocular — watching this product' : 'Ocular — track this price';
+  button.classList.toggle('ocular-btn--tracked', tracked);
+  button.setAttribute('aria-label', name);
+  button.title = name;
+}
+
 function flash(text) {
   document.querySelector('.ocular-toast')?.remove();
 
@@ -125,6 +175,13 @@ function flash(text) {
   toast.setAttribute('role', 'status');
   toast.textContent = text;
   document.body.appendChild(toast);
+
+  // The stylesheet parks the toast in the bottom-right corner, one badge-height
+  // above where the badge used to be pinned. Now that the badge can be dragged
+  // anywhere, that corner is often nowhere near it — so anchor to the badge like
+  // the panel does, and only fall back to the corner if there isn't one.
+  const anchor = document.getElementById(BUTTON_ID);
+  if (anchor) placeNear(toast, anchor);
 
   setTimeout(() => toast.classList.add('ocular-toast--out'), 2600);
   setTimeout(() => toast.remove(), 3200);
@@ -225,12 +282,20 @@ async function trackFromPanel(panel, trigger) {
     return;
   }
 
-  renderButton({ tracked: true });
-  flash(`Watching at ${money(response.product.lastPrice, response.product.currency)}`);
+  setButtonState({ tracked: true });
 
+  // Deliberately no toast here. The panel is already open and about to show the
+  // price, the lowest seen and the usual price — a floating "Watching at ₹X" in
+  // another corner repeated one of those numbers somewhere the eye wasn't.
   const state = await send({ type: 'status', url: location.href });
-  if (state.ok && state.tracked) renderPanel(panel, state);
-  else closePanel();
+  if (state.ok && state.tracked) {
+    renderPanel(panel, state);
+    return;
+  }
+
+  // Only if the panel can't confirm it does the toast earn its place.
+  closePanel();
+  flash(`Watching at ${money(response.product.lastPrice, response.product.currency)}`);
 }
 
 /**
@@ -242,15 +307,15 @@ async function trackFromPanel(panel, trigger) {
 function renderIntroPanel(panel) {
   panel.innerHTML = panelShell({
     body: `
-      <div class="ocular-panel__msg">Watch this product's price — free, and without an account.</div>
+      <div class="ocular-panel__lede">Track this price</div>
+      <div class="ocular-panel__sub">Free, no account, nothing leaves this device.</div>
       <ul class="ocular-panel__caps">
-        <li>Records the price every time you open this page</li>
-        <li>Re-checks on its own while your browser is running</li>
-        <li>Alerts against the 90-day median, so a fake "was" price can't trigger one</li>
-        <li>History stays on this device</li>
+        <li>Logs the price each time you open the page</li>
+        <li>Re-checks in the background on its own</li>
+        <li>Alerts on real drops, not fake sale prices</li>
       </ul>
     `,
-    actions: '<button data-act="track">Monitor price</button>',
+    actions: '<button data-act="track" class="ocular-panel__cta">Monitor price</button>',
   });
 
   panel.onclick = (event) => {
@@ -437,20 +502,35 @@ async function evaluatePage() {
   closePanel();
   if (!looksLikeProductPage(url)) return;
 
+  // Show the badge the moment we know this is a product page.
+  //
+  // It used to render only after waitForExtractable() resolved, which is a wait
+  // of up to EXTRACT_TIMEOUT_MS on a client-rendered page — so on a slow store
+  // the badge appeared seconds after the page had finished loading, long after
+  // anyone had stopped looking for it. Rendering first and resolving state after
+  // means it is there immediately; the only thing that arrives late is the
+  // green "watching" dot.
+  renderButton({ tracked: false });
+
   const observed = await waitForExtractable(url);
   if (token !== evaluateToken || location.href !== url) return; // superseded
-  if (!observed.ok) return;
+
+  // Nothing readable on the page, so there is nothing to offer. Withdrawing the
+  // badge keeps the original promise: never show a control that cannot work.
+  if (!observed.ok) return removeButton();
 
   const status = await send({ type: 'isTracked', url });
   if (token !== evaluateToken) return;
-  if (!status.ok) return; // extension reloaded; stay quiet rather than lie
+  if (!status.ok) return removeButton(); // extension reloaded; don't lie
 
   if (status.tracked) {
     await send({ type: 'observe', url, observed });
     if (token !== evaluateToken) return;
   }
 
-  renderButton({ tracked: Boolean(status.tracked) });
+  // Update in place rather than re-rendering: a second renderButton() would
+  // replace the element and throw away wherever the user had dragged it.
+  setButtonState({ tracked: Boolean(status.tracked) });
 }
 
 /**

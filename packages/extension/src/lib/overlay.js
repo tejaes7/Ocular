@@ -234,6 +234,10 @@ export function makeDraggable(element, { onMove } = {}) {
     // also toggle the panel.
     suppressNextClick = true;
 
+    // Stays exactly where it was let go. An earlier version snapped it to the
+    // nearest side edge, chat-head style; that repeatedly threw away a position
+    // the user had deliberately chosen, which is worse than the tidiness it
+    // bought. The clamp during the drag already guarantees it stays on screen.
     const rect = element.getBoundingClientRect();
     savePosition({ x: rect.left, y: rect.top, vw: window.innerWidth, vh: window.innerHeight });
   };

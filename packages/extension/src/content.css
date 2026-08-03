@@ -73,9 +73,17 @@
   line-height: 1 !important;
   letter-spacing: -0.005em !important;
 
-  /* Near-black, not a brand blue. Reads as chrome, not as an advert. */
-  color: #fff !important;
-  background: #0f1114 !important;
+  /* Light disc. The mark is a pale-blue gradient drawn for light backgrounds;
+     on near-black its lighter half washed out and the detail turned to mush at
+     this size. Visibility against a white store page comes from the shadow and
+     the hairline, not from inverting the disc. */
+  color: var(--oc-ink) !important;
+  background: var(--oc-bg) !important;
+  border: 1px solid var(--oc-line) !important;
+
+  /* Announce itself on arrival — the badge is easy to miss on a dense product
+     page otherwise. Short, and skipped entirely under reduced-motion. */
+  animation: ocular-badge-in 260ms cubic-bezier(0.16, 1, 0.3, 1) !important;
   box-shadow: var(--oc-shadow) !important;
   cursor: pointer !important;
   transition: transform 0.14s ease, opacity 0.14s ease !important;
@@ -88,12 +96,17 @@
   user-select: none !important;
 }
 
-@media (prefers-color-scheme: dark) {
-  #ocular-monitor-button { color: #0f1114 !important; background: #f2f4f7 !important; }
+@keyframes ocular-badge-in {
+  from { opacity: 0; transform: scale(0.55); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ocular-monitor-button { animation: none !important; }
 }
 
 #ocular-monitor-button:hover { transform: translateY(-1px) !important; opacity: 0.9 !important; }
-#ocular-monitor-button:focus-visible { outline: 2px solid #fff !important; outline-offset: 2px !important; }
+#ocular-monitor-button:focus-visible { outline: 2px solid var(--oc-ink) !important; outline-offset: 2px !important; }
 
 /* Must stay after :hover — equal specificity, so source order decides. The hover
    lift would otherwise offset the element by 1px from where the pointer is, and
@@ -105,6 +118,24 @@
   opacity: 1 !important;
 }
 
+/* The brand mark. `all: unset` on the button does not reach children, but a
+   retailer's own `img { }` rules do, so the geometry is restated here. */
+#ocular-monitor-button .ocular-btn__mark {
+  width: 24px !important;
+  height: 24px !important;
+  flex: none !important;
+  display: block !important;
+  object-fit: contain !important;
+  /* The press must land on the button, not the image inside it, or the drag
+     module's pointer capture never starts. */
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Fallback mark, drawn in CSS. Used when the image cannot load — an orphaned
+   content script after an extension reload, or a retailer whose img-src CSP
+   refuses a chrome-extension:// URL. Without these rules the fallback would be
+   an empty span and the badge would look broken. */
 #ocular-monitor-button .ocular-btn__eye {
   width: 19px !important;
   height: 19px !important;
@@ -112,6 +143,7 @@
   border-radius: 50% !important;
   border: 1.6px solid currentColor !important;
   position: relative !important;
+  pointer-events: none !important;
 }
 
 #ocular-monitor-button .ocular-btn__eye::after {
@@ -122,8 +154,21 @@
   background: currentColor !important;
 }
 
-/* Tracked state: the dot goes green. The only colour on the button. */
-#ocular-monitor-button.ocular-btn--tracked .ocular-btn__eye { color: var(--oc-down) !important; }
+/* Tracked state. The mark is fixed brand artwork and cannot recolour like the
+   old CSS eye did, so the signal moves to a dot on the rim. Ringed in the badge
+   colour so it reads against whatever the retailer's page puts behind it. */
+#ocular-monitor-button.ocular-btn--tracked::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: var(--oc-down) !important;
+  border: 2px solid var(--oc-bg) !important;
+  box-sizing: border-box !important;
+}
 
 /* Panel ------------------------------------------------------------------- */
 
@@ -231,32 +276,69 @@
   color: var(--oc-ink-3) !important;
 }
 
-/* What Ocular does, listed on the pre-track panel. Marker drawn with ::before
-   rather than list-style, so a retailer's own `ul` reset cannot remove it. */
+/* Pre-track panel.
+   The intro line used to reuse .ocular-panel__msg, which carries a quote bar and
+   is built for secondary asides — as a headline it read like a footnote. These
+   give the panel a real hierarchy: title, supporting line, then the list. */
+#ocular-panel .ocular-panel__lede {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--oc-ink) !important;
+}
+
+#ocular-panel .ocular-panel__sub {
+  margin-top: 3px !important;
+  font-size: 11.5px !important;
+  line-height: 1.45 !important;
+  color: var(--oc-ink-3) !important;
+}
+
+/* Marker drawn with ::before rather than list-style, so a retailer's own `ul`
+   reset cannot remove it. */
 #ocular-panel .ocular-panel__caps {
-  margin: 12px 0 0 !important;
+  margin: 12px 0 2px !important;
   padding: 0 !important;
   list-style: none !important;
 }
 
 #ocular-panel .ocular-panel__caps li {
   position: relative !important;
-  margin: 0 0 7px !important;
-  padding-left: 15px !important;
+  margin: 0 0 6px !important;
+  padding-left: 16px !important;
   font-size: 11.5px !important;
-  line-height: 1.45 !important;
+  line-height: 1.4 !important;
   color: var(--oc-ink-2) !important;
 }
 
+/* A tick rather than a dot: these are things Ocular does for you, and a check
+   reads as a capability where a bullet reads as an inventory. */
 #ocular-panel .ocular-panel__caps li::before {
   content: '' !important;
   position: absolute !important;
-  left: 2px !important;
-  top: 6px !important;
+  left: 3px !important;
+  top: 4px !important;
   width: 4px !important;
-  height: 4px !important;
-  border-radius: 50% !important;
-  background: var(--oc-ink-3) !important;
+  height: 7px !important;
+  border: solid var(--oc-down) !important;
+  border-width: 0 1.6px 1.6px 0 !important;
+  transform: rotate(43deg) !important;
+}
+
+/* The one thing the panel is asking you to do, so it is filled rather than
+   another outline competing with the close button. */
+#ocular-panel .ocular-panel__actions button.ocular-panel__cta {
+  height: 32px !important;
+  line-height: 30px !important;
+  font-weight: 600 !important;
+  color: var(--oc-bg) !important;
+  background: var(--oc-ink) !important;
+  border-color: var(--oc-ink) !important;
+}
+
+#ocular-panel .ocular-panel__actions button.ocular-panel__cta:hover {
+  opacity: 0.88 !important;
+  background: var(--oc-ink) !important;
 }
 
 #ocular-panel .ocular-panel__msg--good { color: var(--oc-down) !important; border-left-color: var(--oc-down) !important; }
