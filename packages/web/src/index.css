@@ -227,10 +227,15 @@ textarea,
   100% { transform: translate3d(-50%, 0, 0); }
 }
 
+/* Duration is tied to track length, not picked by eye. The 25s here was chosen
+   when the strip held 9 stores (~1730px, about 70px/s). At 16 stores the track
+   is ~3070px, so the same 25s silently doubled the speed to ~123px/s — which is
+   why it started to feel rushed. 44s restores the original ~70px/s.
+   Rule of thumb if you add more stores: seconds = track px / 70. */
 .animate-marquee {
   display: flex;
   width: max-content;
-  animation: marquee 25s linear infinite;
+  animation: marquee 44s linear infinite;
   will-change: transform;
   backface-visibility: hidden;
 }
