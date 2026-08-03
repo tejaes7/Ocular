@@ -85,46 +85,25 @@ function renderButton({ tracked }) {
   // into background tabs via chrome.scripting, where timing is less certain.
   if (!document.body) return;
 
+  const name = tracked ? 'Ocular — watching this product' : 'Ocular — track this price';
+
   const button = document.createElement('button');
   button.id = BUTTON_ID;
   button.type = 'button';
   button.className = `ocular-btn${tracked ? ' ocular-btn--tracked' : ''}`;
   button.setAttribute('aria-haspopup', 'dialog');
-  button.innerHTML = `
-    <span class="ocular-btn__eye" aria-hidden="true"></span>
-    <span class="ocular-btn__label"></span>
-  `;
-  button.querySelector('.ocular-btn__label').textContent = tracked ? 'Watching' : 'Monitor price';
+  // A circular badge carries no text, so the accessible name and the tooltip are
+  // the only things naming it. Both, not one: the tooltip is for a sighted user
+  // hovering an unfamiliar dot, aria-label is for everyone else.
+  button.setAttribute('aria-label', name);
+  button.title = name;
+  button.innerHTML = '<span class="ocular-btn__eye" aria-hidden="true"></span>';
 
-  button.addEventListener('click', async () => {
-    if (button.dataset.busy) return;
-
-    if (tracked) {
-      await togglePanel();
-      return;
-    }
-
-    button.dataset.busy = '1';
-    const label = button.querySelector('.ocular-btn__label');
-    label.textContent = 'Adding…';
-
-    const observed = scrape();
-    const response = await send({
-      type: 'track',
-      url: location.href,
-      observed: observed.ok ? observed : null,
-    });
-
-    delete button.dataset.busy;
-
-    if (response.ok && response.product) {
-      renderButton({ tracked: true });
-      flash(`Watching at ${money(response.product.lastPrice, response.product.currency)}`);
-    } else {
-      label.textContent = 'Try again';
-      flash(response.stale ? 'Ocular was updated — refresh this page.' : 'Could not add this product.');
-    }
-  });
+  // The badge is only an entry point now — every action lives in the panel.
+  // It previously tracked the product outright when untracked, which meant the
+  // one control did two different things depending on state, and gave a first-
+  // time visitor no way to find out what it was before committing to it.
+  button.addEventListener('click', () => togglePanel());
 
   document.body.appendChild(button);
 
@@ -205,7 +184,8 @@ async function togglePanel() {
   }
 
   if (!state.tracked) {
-    renderPanelError(panel, 'This product is no longer being watched.');
+    // Not an error — this is the ordinary first visit to a product page.
+    renderIntroPanel(panel);
     return;
   }
 
@@ -222,6 +202,63 @@ function panelShell({ body, actions = '', foot = '' }) {
     ${actions ? `<div class="ocular-panel__actions">${actions}</div>` : ''}
     ${foot ? `<div class="ocular-panel__foot">${foot}</div>` : ''}
   `;
+}
+
+/** Track the current page, then swap the panel over to the live status view. */
+async function trackFromPanel(panel, trigger) {
+  if (trigger.dataset.busy) return;
+  trigger.dataset.busy = '1';
+  trigger.textContent = 'Adding…';
+
+  const observed = scrape();
+  const response = await send({
+    type: 'track',
+    url: location.href,
+    observed: observed.ok ? observed : null,
+  });
+
+  delete trigger.dataset.busy;
+
+  if (!response.ok || !response.product) {
+    trigger.textContent = 'Try again';
+    flash(response.stale ? 'Ocular was updated — refresh this page.' : 'Could not add this product.');
+    return;
+  }
+
+  renderButton({ tracked: true });
+  flash(`Watching at ${money(response.product.lastPrice, response.product.currency)}`);
+
+  const state = await send({ type: 'status', url: location.href });
+  if (state.ok && state.tracked) renderPanel(panel, state);
+  else closePanel();
+}
+
+/**
+ * What Ocular does, shown before anything is tracked.
+ *
+ * This is the first thing most people see after clicking an unfamiliar dot on a
+ * retailer's page, so it answers "what is this?" rather than assuming they know.
+ */
+function renderIntroPanel(panel) {
+  panel.innerHTML = panelShell({
+    body: `
+      <div class="ocular-panel__msg">Watch this product's price — free, and without an account.</div>
+      <ul class="ocular-panel__caps">
+        <li>Records the price every time you open this page</li>
+        <li>Re-checks on its own while your browser is running</li>
+        <li>Alerts against the 90-day median, so a fake "was" price can't trigger one</li>
+        <li>History stays on this device</li>
+      </ul>
+    `,
+    actions: '<button data-act="track">Monitor price</button>',
+  });
+
+  panel.onclick = (event) => {
+    const trigger = event.target.closest('button[data-act]');
+    if (!trigger) return;
+    if (trigger.dataset.act === 'close') closePanel();
+    if (trigger.dataset.act === 'track') trackFromPanel(panel, trigger);
+  };
 }
 
 function renderPanelError(panel, text) {
