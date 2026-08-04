@@ -120,7 +120,51 @@ export const SITE_PACKS = [
       return url.pathname.includes('/product/') || /\/\d+\/?$/.test(url.pathname);
     },
   },
+{
+  id: 'boat',
+  label: 'boAt',
+  match: /(^|\.)boat-lifestyle\.com$/i,
 
+  price: [
+    '.product__price',
+    '.price-item--sale',
+    '.price__regular .price-item',
+    '[data-product-price]'
+  ],
+
+  listPrice: [
+    '.price-item--regular',
+    '.price__compare .price-item',
+    '.price-item--strike'
+  ],
+
+  title: [
+    'h1.product__title',
+    '.product__title',
+    'h1'
+  ],
+
+  image: [
+    '.product__media img',
+    '.product-gallery img',
+    '.product__image img'
+  ],
+
+  outOfStock: [
+    '.sold-out',
+    '.product-form__buttons [disabled]',
+    '.product-form__submit[disabled]'
+  ],
+
+  canonical(url) {
+    // Remove tracking parameters and trailing slash.
+    return `${url.origin}${url.pathname.replace(/\/$/, '')}`;
+  },
+
+  isProductPage(url) {
+    return /^\/products\//i.test(url.pathname);
+  },
+},
   {
     id: 'nykaa',
     label: 'Nykaa',
