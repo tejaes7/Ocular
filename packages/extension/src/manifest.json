@@ -25,6 +25,7 @@
     "https://www.croma.com/*",
     "https://www.reliancedigital.in/*",
     "https://www.nykaa.com/*",
+    "https://www.boat-lifestyle.com/*",
     "https://www.tatacliq.com/*",
     "https://www.meesho.com/*",
     "https://www.snapdeal.com/*",
@@ -68,6 +69,7 @@
         "https://www.ajio.com/*",
         "https://www.croma.com/*",
         "https://www.reliancedigital.in/*",
+        "https://www.boat-lifestyle.com/*",
         "https://www.nykaa.com/*",
         "https://www.tatacliq.com/*",
         "https://www.meesho.com/*",
@@ -79,6 +81,7 @@
         "https://in.puma.com/*",
         "https://www.decathlon.in/*"
       ],
+      
       "js": [
         "content.js"
       ],
@@ -102,6 +105,7 @@
         "https://www.ajio.com/*",
         "https://www.croma.com/*",
         "https://www.reliancedigital.in/*",
+        "https://www.boat-lifestyle.com/*",
         "https://www.nykaa.com/*",
         "https://www.tatacliq.com/*",
         "https://www.meesho.com/*",
