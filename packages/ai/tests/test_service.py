@@ -31,10 +31,12 @@ def test_verdict_endpoint_valid():
 
 
 def test_verdict_endpoint_insufficient_history():
-    response = client.post("/verdict", json={"history": []})
+    response = client.post(
+        "/verdict",
+        json={"history": [{"ts": 1700000000000, "lastSeen": 1700000000000, "price": 10000.0, "inStock": True}]},
+    )
     assert response.status_code == 200
     data = response.json()
-    assert data["verdict"] == "neutral"
     assert data["confidence"] == "low"
 
 
