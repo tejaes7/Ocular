@@ -61,10 +61,6 @@ test('every site pack is reachable from the extension manifest', () => {
 
 test('manifest host_permissions and content_scripts stay in step', () => {
   const manifest = JSON.parse(read('../../extension/src/manifest.json'));
-
-  console.log('HOST:', [...manifest.host_permissions].sort());
-  console.log('MATCHES:', [...manifest.content_scripts[0].matches].sort());
-
   assert.deepEqual(
     [...manifest.content_scripts[0].matches].sort(),
     [...manifest.host_permissions].sort()
