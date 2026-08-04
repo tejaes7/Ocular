@@ -249,10 +249,26 @@ async function togglePanel() {
   renderPanel(panel, state);
 }
 
-function panelShell({ body, actions = '', foot = '' }) {
+/**
+ * `branded` swaps the plain header for the navy band carrying the mark. Used on
+ * the pre-track panel, where the visitor may not yet know whose control this is;
+ * the status panel keeps the quieter header so the numbers stay the loudest
+ * thing on it.
+ */
+function panelShell({ body, actions = '', foot = '', branded = false }) {
+  let mark = '';
+  if (branded) {
+    try {
+      mark = `<img class="ocular-panel__mark" src="${chrome.runtime.getURL('icons/ocular-mark.png')}" alt="" aria-hidden="true">`;
+    } catch {
+      // Orphaned script after a reload — the wordmark alone still identifies it.
+      mark = '';
+    }
+  }
+
   return `
-    <div class="ocular-panel__head">
-      <span class="ocular-panel__brand">Ocular</span>
+    <div class="ocular-panel__head${branded ? ' ocular-panel__head--brand' : ''}">
+      ${mark}<span class="ocular-panel__brand">Ocular</span>
       <button class="ocular-panel__x" data-act="close" aria-label="Close">&times;</button>
     </div>
     <div class="ocular-panel__body">${body}</div>
@@ -305,17 +321,26 @@ async function trackFromPanel(panel, trigger) {
  * retailer's page, so it answers "what is this?" rather than assuming they know.
  */
 function renderIntroPanel(panel) {
+  // The price is read off the page rather than described, so the panel shows that
+  // Ocular can already see this product instead of promising that it can.
+  const observed = scrape();
+  const priceNow =
+    observed.ok && Number.isFinite(observed.price)
+      ? money(observed.price, observed.currency)
+      : 'Not readable here';
+
   panel.innerHTML = panelShell({
+    branded: true,
     body: `
-      <div class="ocular-panel__lede">Track this price</div>
-      <div class="ocular-panel__sub">Free, no account, nothing leaves this device.</div>
-      <ul class="ocular-panel__caps">
-        <li>Logs the price each time you open the page</li>
-        <li>Re-checks in the background on its own</li>
-        <li>Alerts on real drops, not fake sale prices</li>
-      </ul>
+      <div class="ocular-panel__lede">Not watched</div>
+      <div class="ocular-panel__ledger">
+        <div><span>Price now</span><b>${escapeHtml(priceNow)}</b></div>
+        <div><span>Readings</span><b>0</b></div>
+        <div><span>Checks</span><b class="ocular-panel__ledger-note">On visit, then hourly</b></div>
+        <div><span>Alerts</span><b class="ocular-panel__ledger-note">Against the 90-day median</b></div>
+      </div>
     `,
-    actions: '<button data-act="track" class="ocular-panel__cta">Monitor price</button>',
+    actions: '<button data-act="track">Watch this price</button>',
   });
 
   panel.onclick = (event) => {

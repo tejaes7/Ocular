@@ -109,6 +109,36 @@ test('a structured reading far below the usual price is accepted', () => {
   assert.equal(verdict.ok, true);
 });
 
+// ---------------------------------------------------------------------------
+// Regression: an out-of-stock Amazon page fired "price dropped 98%" on every
+// reload. With no main offer on the page the ladder found the next structured
+// offer instead — a sponsored slot — which parsed perfectly and belonged to a
+// different product. Those slots reshuffle per load, so each refresh produced a
+// fresh bogus drop. A trusted strategy used to skip the median check entirely.
+// ---------------------------------------------------------------------------
+
+test('a structured reading far enough below the usual price is rejected', () => {
+  const verdict = isPlausibleReading({
+    price: 7,
+    strategy: 'jsonld',
+    confidence: 'high',
+    stats: usual,
+  });
+  assert.equal(verdict.ok, false);
+  assert.equal(verdict.reason, 'implausible-drop');
+});
+
+test('a structured reading far above the usual price is rejected', () => {
+  const verdict = isPlausibleReading({
+    price: 17_249,
+    strategy: 'selector',
+    confidence: 'high',
+    stats: usual,
+  });
+  assert.equal(verdict.ok, false);
+  assert.equal(verdict.reason, 'implausible-rise');
+});
+
 test('a structured reading is still distrusted when it reports low confidence', () => {
   const verdict = isPlausibleReading({
     price: 8.75,

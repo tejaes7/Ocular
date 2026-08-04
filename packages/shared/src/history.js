@@ -59,6 +59,24 @@ const GUESS_MAX_DROP_PCT = 50;
 const GUESS_MAX_RISE_PCT = 100;
 
 /**
+ * The same sanity check for readings that came from structured data.
+ *
+ * A trusted strategy used to skip this test entirely, on the reasoning that
+ * JSON-LD and site selectors do not guess. They do not — but "did not guess"
+ * only means the markup was parsed correctly, not that it described the product
+ * the user is looking at. On a page whose main offer is missing (out of stock,
+ * region-locked, a redirect stub) the ladder finds the next structured offer on
+ * the page instead: a sponsored slot, a "similar items" carousel. That parses
+ * perfectly and belongs to something else entirely, and because those slots are
+ * reshuffled on every load it produced a different "price drop" each refresh.
+ *
+ * So the band is wide rather than absent. A genuine clearance can take 80% off;
+ * nothing legitimate takes 98%.
+ */
+const TRUSTED_MAX_DROP_PCT = 90;
+const TRUSTED_MAX_RISE_PCT = 400;
+
+/**
  * Should this reading be allowed into the stored history?
  *
  * `docs/ARCHITECTURE.md` states that a wrong price is worse than no price: a bad
@@ -86,18 +104,20 @@ export function isPlausibleReading({ price, strategy, confidence, stats }) {
   const trusted =
     (STRUCTURED_STRATEGIES.has(strategy) || TARGETED_STRATEGIES.has(strategy)) &&
     confidence !== 'low';
-  if (trusted) return { ok: true };
+
+  const maxDrop = trusted ? TRUSTED_MAX_DROP_PCT : GUESS_MAX_DROP_PCT;
+  const maxRise = trusted ? TRUSTED_MAX_RISE_PCT : GUESS_MAX_RISE_PCT;
 
   const deltaPct = ((price - median) / median) * 100;
 
-  if (deltaPct < -GUESS_MAX_DROP_PCT) {
+  if (deltaPct < -maxDrop) {
     return {
       ok: false,
       reason: 'implausible-drop',
       detail: `${strategy || 'unknown'} read ${price}, ${Math.abs(deltaPct).toFixed(0)}% below the usual ${median}`,
     };
   }
-  if (deltaPct > GUESS_MAX_RISE_PCT) {
+  if (deltaPct > maxRise) {
     return {
       ok: false,
       reason: 'implausible-rise',

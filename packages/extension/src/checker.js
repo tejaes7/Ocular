@@ -18,6 +18,7 @@
 
 import { looksBlocked } from '@ocular/shared/htmlscan';
 import { getHostState, saveHostState } from './lib/store.js';
+import { buildPriceSnippet, extractProduct } from '@ocular/shared/extract';
 
 const OFFSCREEN_TARGET = 'ocular-offscreen';
 
@@ -79,7 +80,28 @@ async function ensureOffscreen() {
   return creatingOffscreen;
 }
 
+/**
+ * Chrome's MV3 background is a service worker with no DOM, which is the entire
+ * reason the offscreen document exists. Firefox's MV3 background is an event
+ * page — a real document — so DOMParser is simply there, and chrome.offscreen
+ * does not exist at all. Detect the capability rather than the browser.
+ */
+const hasOffscreen = () => typeof chrome !== 'undefined' && Boolean(chrome.offscreen);
+
 async function parseHtml(html, url, learnedSelector) {
+  if (!hasOffscreen()) {
+    // Firefox path: parse in place. Same shape of result as the offscreen
+    // document returns, so callers cannot tell the difference.
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const result = extractProduct(doc, url, { learnedSelector });
+      result.snippet = result.ok ? null : buildPriceSnippet(doc);
+      return result;
+    } catch (error) {
+      return { ok: false, reason: 'parse-error', error: String(error) };
+    }
+  }
+
   await ensureOffscreen();
   const result = await chrome.runtime.sendMessage({
     target: OFFSCREEN_TARGET,

@@ -1,6 +1,7 @@
 import { escapeHtml, explainError, money, percentChange, relativeTime } from '@ocular/shared/format';
 import { looksLikeProductPage } from '@ocular/shared/sites';
 import { eyeMark, icons } from './ui/icons.js';
+import { extensionsUrl } from './lib/browser.js';
 
 const listEl = document.getElementById('list');
 const bannerEl = document.getElementById('current');
@@ -189,7 +190,7 @@ async function refreshList() {
     listEl.innerHTML = `<div class="state">
       <h2>Ocular isn't responding</h2>
       <p>${escapeHtml(response.error)}</p>
-      <p>Reload the extension from chrome://extensions.</p>
+      <p>Reload the extension from ${escapeHtml(extensionsUrl())}.</p>
     </div>`;
     summaryEl.textContent = 'disconnected';
     return;

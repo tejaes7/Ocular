@@ -114,7 +114,7 @@ async function syncIfEnabled() {
 }
 
 /**
- * Land what the worker saw while Chrome was shut.
+ * Land what the worker saw while the browser was shut.
  *
  * This is the step that was missing, and without it the server was pointless
  * from the user's side: prices merged into history, but `lastPrice` was never
@@ -262,6 +262,21 @@ async function maybeNotify(product, previousPrice, price, reading = {}) {
   // from a structured rung confirms it and the alert fires then. One cycle late
   // and correct beats immediate and wrong.
   if (reading.confidence === 'low' || reading.strategy === 'heuristic-blind') return;
+
+  // Out of stock: never alert.
+  //
+  // `inStock` was recorded on every reading but nothing ever read it back, so a
+  // product whose page says "Currently unavailable" could still fire "Price
+  // dropped 31%". Two things go wrong at once there. The drop is unactionable —
+  // there is nothing to buy at that price. And an unavailable page has no main
+  // price block, so extraction reaches for whatever else on the page looks like
+  // a price: a sponsored slot, a "similar items" carousel. Those change on every
+  // load, which is why reloading produced a fresh, entirely different "drop"
+  // each time.
+  //
+  // The reading still enters history — going out of stock is worth recording —
+  // it just stops being a reason to interrupt anyone.
+  if (reading.inStock === false) return;
 
   const settings = await getSettings();
   const stats = summarizeHistory(await getHistory(product.id));

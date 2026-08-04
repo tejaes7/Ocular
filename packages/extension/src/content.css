@@ -276,6 +276,73 @@
   color: var(--oc-ink-3) !important;
 }
 
+/* Branded header — navy band carrying the mark, used on the pre-track panel.
+   Fixed colours rather than tokens: this band is brand artwork and should look
+   the same whatever the OS colour scheme, exactly like the mark sitting on it. */
+#ocular-panel .ocular-panel__head--brand {
+  gap: 8px !important;
+  height: 42px !important;
+  background: #1f2e4d !important;
+  border-bottom-color: transparent !important;
+}
+
+#ocular-panel .ocular-panel__head--brand .ocular-panel__brand {
+  flex: 1 !important;
+  color: #ffffff !important;
+  text-transform: none !important;
+  letter-spacing: -0.01em !important;
+  font-size: 13px !important;
+}
+
+#ocular-panel .ocular-panel__head--brand .ocular-panel__x {
+  color: rgba(255, 255, 255, 0.66) !important;
+}
+
+#ocular-panel .ocular-panel__head--brand .ocular-panel__x:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+#ocular-panel .ocular-panel__mark {
+  width: 18px !important;
+  height: 18px !important;
+  flex: none !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+/* Ledger rows. Hairline-separated, figures right-aligned and tabular so the
+   column stays straight — the house style the popup already uses. */
+#ocular-panel .ocular-panel__ledger {
+  margin-top: 10px !important;
+}
+
+#ocular-panel .ocular-panel__ledger > div {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  padding: 7px 0 !important;
+  border-top: 1px solid var(--oc-line) !important;
+  font-size: 11.5px !important;
+}
+
+#ocular-panel .ocular-panel__ledger span { color: var(--oc-ink-3) !important; }
+
+#ocular-panel .ocular-panel__ledger b {
+  font-weight: 550 !important;
+  text-align: right !important;
+  color: var(--oc-ink) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Rows whose value is a phrase, not a figure — lighter, so the eye still lands
+   on the price first. */
+#ocular-panel .ocular-panel__ledger b.ocular-panel__ledger-note {
+  font-weight: 400 !important;
+  color: var(--oc-ink-2) !important;
+}
+
 /* Pre-track panel.
    The intro line used to reuse .ocular-panel__msg, which carries a quote bar and
    is built for secondary asides — as a headline it read like a footnote. These
