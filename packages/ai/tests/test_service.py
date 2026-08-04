@@ -39,5 +39,12 @@ def test_verdict_endpoint_insufficient_history():
 
 
 def test_extract_endpoint_returns_501():
-    response = client.post("/extract", json={"snippet": "TITLE: Kettle\nPRICE CANDIDATES:\nspan :: ₹1,299"})
+    response = client.post(
+        "/extract",
+        json={
+            "url": "https://example.com/p/1",
+            "snippet": "TITLE: Kettle\nPRICE CANDIDATES:\nspan :: ₹1,299",
+        },
+    )
     assert response.status_code == 501
+
