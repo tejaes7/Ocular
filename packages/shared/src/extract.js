@@ -126,6 +126,7 @@ function isProductNode(node) {
 
 function readOffer(offers) {
   if (!offers) return null;
+
   const list = Array.isArray(offers) ? offers : [offers];
 
   for (const offer of list) {
@@ -147,15 +148,32 @@ function readOffer(offers) {
     if (!parsed) continue;
 
     const availability = String(offer.availability || '').toLowerCase();
+
+    const unavailable = [
+      'outofstock',
+      'out_of_stock',
+      'soldout',
+      'sold_out',
+      'discontinued',
+      'preorder',
+      'pre-order',
+    ];
+
+    const inStock =
+      availability === ''
+        ? true
+        : !unavailable.some((state) => availability.includes(state));
+
     return {
       value: parsed.value,
       currency:
         offer.priceCurrency ||
         offer.priceSpecification?.priceCurrency ||
         parsed.currency,
-      inStock: availability ? !availability.includes('outofstock') : true,
+      inStock,
     };
   }
+
   return null;
 }
 
@@ -169,19 +187,31 @@ function readOffer(offers) {
 export function interpretJsonLd(rawNodes) {
   for (const node of flattenJsonLd(rawNodes)) {
     if (!isProductNode(node)) continue;
+
     const offer = readOffer(node.offers);
     if (!offer) continue;
 
-    const image = Array.isArray(node.image) ? node.image[0] : node.image;
+    const image = Array.isArray(node.image)
+      ? node.image[0]
+      : node.image;
+
+    const title =
+      typeof node.name === 'string'
+        ? node.name
+        : null;
+
     return {
       strategy: 'jsonld',
       price: offer.value,
       currency: offer.currency,
       inStock: offer.inStock,
-      title: typeof node.name === 'string' ? node.name : null,
-      image: typeof image === 'string' ? image : image?.url || null,
+      title,
+      image: typeof image === 'string'
+        ? image
+        : image?.url || null,
     };
   }
+
   return null;
 }
 
