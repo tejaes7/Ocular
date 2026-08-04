@@ -195,7 +195,10 @@ export async function runSync(settings) {
     if (!result.ok) {
       // Pages already applied are kept: their rows are in history and their
       // cursor is saved, so a mid-drain failure costs a retry, not the work.
-      if (page === 0) return result;
+      if (page === 0) {
+        await saveMeta({ lastSyncError: result.error || 'Sync failed.' });
+        return result;
+      }
       break;
     }
 
@@ -207,7 +210,7 @@ export async function runSync(settings) {
     catchUp.push(...applied.catchUp);
 
     since = nextCursorFrom(payload);
-    await saveMeta({ lastSyncAt: since });
+    await saveMeta({ lastSyncAt: since, lastSyncError: null });
 
     if (payload.truncated !== true) break;
   }

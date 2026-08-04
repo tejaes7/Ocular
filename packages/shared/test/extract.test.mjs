@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { before, test } from 'node:test';
 import { JSDOM } from 'jsdom';
 
-import { buildPriceSnippet, extractProduct } from '../src/extract.js';
+import { buildPriceSnippet, extractProduct, inferCurrencyFromUrl } from '../src/extract.js';
 
 // extract.js consults Node.DOCUMENT_POSITION_FOLLOWING in the heuristic rung.
 before(() => {
@@ -279,3 +279,21 @@ test('buildPriceSnippet stays small and keeps the real candidates', () => {
   // The whole point is that a 2 MB page becomes a couple of KB.
   assert.ok(snippet.length < 2000, `snippet was ${snippet.length} chars`);
 });
+
+test('inferCurrencyFromUrl maps domain TLDs correctly', () => {
+  assert.equal(inferCurrencyFromUrl('https://www.amazon.in/dp/B09XS7JWHH'), 'INR');
+  assert.equal(inferCurrencyFromUrl('https://www.amazon.com/dp/B09XS7JWHH'), 'USD');
+  assert.equal(inferCurrencyFromUrl('https://www.amazon.co.uk/dp/B09XS7JWHH'), 'GBP');
+  assert.equal(inferCurrencyFromUrl('https://www.amazon.de/dp/B09XS7JWHH'), 'EUR');
+  assert.equal(inferCurrencyFromUrl('https://www.amazon.com.au/dp/B09XS7JWHH'), 'AUD');
+  assert.equal(inferCurrencyFromUrl('https://unknown-shop.xyz/p/1'), 'INR');
+});
+
+test('extractProduct uses TLD fallback currency when no currency symbol is provided in markup', () => {
+  const doc = parse(`<html><head><title>Item</title><meta property="product:price:amount" content="49.99"></head><body><h1>Wireless Mouse</h1></body></html>`);
+  const result = extractProduct(doc, 'https://www.amazon.co.uk/dp/B09XS7JWHH');
+  assert.equal(result.ok, true);
+  assert.equal(result.price, 49.99);
+  assert.equal(result.currency, 'GBP');
+});
+

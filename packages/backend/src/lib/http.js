@@ -99,6 +99,12 @@ export function isDeviceId(value) {
  * account inside this function is the change docs/API.md forbids.
  */
 export function deviceIdFrom(request) {
-  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  const token = (
+    request.headers.get('X-Device-ID') ||
+    request.headers.get('Authorization') ||
+    ''
+  )
+    .replace(/^Bearer\s+/i, '')
+    .trim();
   return UUID_RE.test(token) ? token.toLowerCase() : null;
 }

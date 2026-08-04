@@ -21,11 +21,16 @@
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 const SEND_TIMEOUT_MS = 10000;
 
+/**
+ * @param {Record<string, any>} env
+ */
 export function emailConfigured(env) {
   return Boolean(env?.RESEND_API_KEY && env?.ALERT_FROM_EMAIL);
 }
 
 /**
+ * @param {Record<string, any>} env
+ * @param {{ to: string, subject: string, text?: string, html?: string }} params
  * @returns {Promise<{ok: boolean, skipped?: boolean, id?: string, error?: string}>}
  */
 export async function sendEmail(env, { to, subject, text, html }) {
@@ -60,8 +65,9 @@ export async function sendEmail(env, { to, subject, text, html }) {
     const payload = await response.json().catch(() => ({}));
     return { ok: true, id: payload.id };
   } catch (error) {
-    const reason = error.name === 'AbortError' ? 'timeout' : 'network';
-    console.error('[Email] Send failed', { reason, message: error.message });
+    const err = /** @type {any} */ (error);
+    const reason = err?.name === 'AbortError' ? 'timeout' : 'network';
+    console.error('[Email] Send failed', { reason, message: err?.message || String(error) });
     return { ok: false, error: reason };
   } finally {
     clearTimeout(timer);

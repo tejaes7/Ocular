@@ -370,3 +370,37 @@ export function siteLabel(urlString) {
     return 'Unknown';
   }
 }
+
+const TLD_CURRENCY_MAP = {
+  in: 'INR',
+  com: 'USD',
+  uk: 'GBP',
+  de: 'EUR',
+  fr: 'EUR',
+  it: 'EUR',
+  es: 'EUR',
+  nl: 'EUR',
+  ca: 'CAD',
+  au: 'AUD',
+  jp: 'JPY',
+  ae: 'AED',
+  sa: 'SAR',
+  sg: 'SGD',
+};
+
+/** Infer fallback currency from domain TLD if extraction yields no explicit currency. */
+export function inferCurrencyFromUrl(urlString) {
+  try {
+    const hostname = new URL(urlString).hostname.toLowerCase();
+    const parts = hostname.split('.');
+    const tld = parts[parts.length - 1];
+    const secondLast = parts.length > 1 ? parts[parts.length - 2] : '';
+
+    if (TLD_CURRENCY_MAP[tld]) return TLD_CURRENCY_MAP[tld];
+    if (secondLast && TLD_CURRENCY_MAP[secondLast]) return TLD_CURRENCY_MAP[secondLast];
+  } catch {
+    // Ignore invalid URLs
+  }
+  return 'INR';
+}
+

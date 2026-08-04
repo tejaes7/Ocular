@@ -1,6 +1,6 @@
 import { restoreBackup } from './lib/backup.js';
 import { relativeTime } from '@ocular/shared/format';
-import { getDeviceId, getSettings, saveSettings } from './lib/store.js';
+import { getDeviceId, getMeta, getSettings, saveSettings } from './lib/store.js';
 import { eyeMark } from './ui/icons.js';
 
 const $ = (id) => document.getElementById(id);
@@ -32,6 +32,25 @@ function setStatus(el, text, tone = '') {
   el.className = `status${tone ? ` status--${tone}` : ''}`;
 }
 
+async function renderSyncHealth(settings) {
+  const status = $('sync-health-status');
+  if (!status) return;
+
+  if (!settings.sync?.enabled) {
+    setStatus(status, 'Disabled');
+    return;
+  }
+
+  const meta = await getMeta();
+  if (meta.lastSyncError) {
+    setStatus(status, `Sync failed: ${meta.lastSyncError}`, 'bad');
+  } else if (meta.lastSyncAt) {
+    setStatus(status, `Synced ${relativeTime(meta.lastSyncAt)}`, 'good');
+  } else {
+    setStatus(status, 'Not synced yet');
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Load / save
 // ---------------------------------------------------------------------------
@@ -57,6 +76,7 @@ async function load() {
 
   syncNestedState();
   renderEmailAlerts(settings);
+  await renderSyncHealth(settings);
   await loadDiagnostics();
 }
 
@@ -248,6 +268,7 @@ $('sync-now').addEventListener('click', async (event) => {
   // A sync is what refreshes the link state, so this is the moment the email
   // alerts row can stop being stale — including after pairing on the website.
   renderEmailAlerts(await getSettings());
+  await renderSyncHealth(await getSettings());
 
   if (result.ok) {
     setStatus(

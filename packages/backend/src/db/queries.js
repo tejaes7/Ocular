@@ -20,29 +20,35 @@ export async function touchDevice(env, deviceId, now) {
 export function upsertProductStatements(env, { deviceId, product, hostname, now }) {
   return [
     env.DB.prepare(
-      `INSERT INTO products (id, device_id, url, canonical_url, hostname, title, currency, added_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO products (id, device_id, user_id, url, canonical_url, hostname, title, currency, added_at)
+       VALUES (?, ?, (SELECT user_id FROM devices WHERE id = ?), ?, ?, ?, ?, ?, ?)
        ON CONFLICT(device_id, id) DO UPDATE SET
          url = excluded.url,
          canonical_url = excluded.canonical_url,
          hostname = excluded.hostname,
+         user_id = COALESCE(excluded.user_id, (SELECT user_id FROM devices WHERE id = ?), products.user_id),
          title = COALESCE(excluded.title, products.title)`
     ).bind(
       product.id,
+      deviceId,
       deviceId,
       product.url || product.canonicalUrl,
       product.canonicalUrl,
       hostname,
       product.title || null,
       product.currency || 'INR',
-      now
+      now,
+      deviceId
     ),
   ];
 }
 
 export async function listProductIds(env, deviceId) {
-  const result = await env.DB.prepare('SELECT id FROM products WHERE device_id = ?')
-    .bind(deviceId)
+  const result = await env.DB.prepare(
+    `SELECT DISTINCT id FROM products
+     WHERE device_id = ? OR (user_id IS NOT NULL AND user_id = (SELECT user_id FROM devices WHERE id = ?))`
+  )
+    .bind(deviceId, deviceId)
     .all();
   return (result.results || []).map((row) => row.id);
 }
@@ -83,9 +89,9 @@ export async function deleteProducts(env, deviceId, ids) {
 export async function pricesSince(env, deviceId, since, limit) {
   const result = await env.DB.prepare(
     `SELECT product_id, ts, price, in_stock FROM prices
-     WHERE device_id = ? AND ts > ? ORDER BY ts ASC LIMIT ?`
+     WHERE (device_id = ? OR device_id IN (SELECT id FROM devices WHERE user_id IS NOT NULL AND user_id = (SELECT user_id FROM devices WHERE id = ?))) AND ts > ? ORDER BY ts ASC LIMIT ?`
   )
-    .bind(deviceId, since, limit)
+    .bind(deviceId, deviceId, since, limit)
     .all();
   return result.results || [];
 }

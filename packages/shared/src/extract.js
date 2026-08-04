@@ -11,7 +11,7 @@
  *   5. AI  (see ai.js)          — only when 1-4 all miss
  */
 
-import { sitePackFor, canonicalizeUrl, siteLabel } from './sites.js';
+import { sitePackFor, canonicalizeUrl, siteLabel, inferCurrencyFromUrl } from './sites.js';
 
 const CURRENCY_BY_SYMBOL = {
   '₹': 'INR', '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY',
@@ -526,7 +526,7 @@ export function extractProduct(doc, url, options = {}) {
     title,
     image,
     price: result.price,
-    currency: result.currency || 'INR',
+    currency: result.currency || inferCurrencyFromUrl(url),
     inStock,
     strategy: result.strategy,
     confidence: result.confidence || 'high',
@@ -568,4 +568,4 @@ function describeElement(el) {
   return `${el.tagName.toLowerCase()}${id}${cls}`.slice(0, 120);
 }
 
-export { canonicalizeUrl, siteLabel };
+export { canonicalizeUrl, siteLabel, inferCurrencyFromUrl };
