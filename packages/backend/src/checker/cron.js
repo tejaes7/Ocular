@@ -48,14 +48,21 @@ export async function runCron(env) {
     limit: MAX_CHECKS_PER_CRON * 2,
   });
 
-  for (const product of selectBatch(candidates)) {
-    await checkOne(env, product).catch((error) => {
-      console.error('[Checker]', {
-        productId: product.id,
-        host: product.hostname,
-        error: error.message,
-      });
-    });
+  const batch = selectBatch(candidates);
+  const CONCURRENCY = 4;
+  for (let i = 0; i < batch.length; i += CONCURRENCY) {
+    const chunk = batch.slice(i, i + CONCURRENCY);
+    await Promise.allSettled(
+      chunk.map((product) =>
+        checkOne(env, product).catch((error) => {
+          console.error('[Checker]', {
+            productId: product.id,
+            host: product.hostname,
+            error: error.message,
+          });
+        })
+      )
+    );
   }
 }
 

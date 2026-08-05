@@ -38,7 +38,7 @@ const OFFSCREEN_TARGET = 'ocular-offscreen';
  * The total stays at 25s so sweep duration doesn't regress — the poll simply
  * gets all of it now instead of the leftovers.
  */
-const TAB_TOTAL_TIMEOUT_MS = 25000;
+const TAB_TOTAL_TIMEOUT_MS = 35000;
 const TAB_POLL_INTERVAL_MS = 900;
 
 /** Cap on *successful* injections; a failed one costs nothing and can retry. */
@@ -285,7 +285,10 @@ export async function runCheck(product, settings, { manual = false } = {}) {
   await saveHostState(host, {
     strategy: state.strategy,
     failures,
-    blockedUntil: lastError.code === 'blocked' ? Date.now() + backoff : 0,
+    blockedUntil:
+      lastError.code === 'blocked' || lastError.code === 'tab-timeout' || lastError.code === 'fetch-failed'
+        ? Date.now() + backoff
+        : 0,
   });
 
   return { ok: false, ...lastError };
