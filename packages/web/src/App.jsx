@@ -5,7 +5,6 @@ import StoresBar from './components/StoresBar';
 import HowItWorks from './components/HowItWorks';
 import VideoTutorial from './components/VideoTutorial';
 import DownloadModal from './components/DownloadModal';
-import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
 import NotificationToast from './components/NotificationToast';
 import ScrollPriceGraph from './components/ScrollPriceGraph';
@@ -26,7 +25,6 @@ export default function App() {
 
 function LandingPage() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   const handleAddProductFromUrl = () => {
@@ -43,10 +41,6 @@ function LandingPage() {
     return () => document.removeEventListener('dragstart', cancelDrag);
   }, []);
 
-  // Google sign-in creates the account or finds it, so there is nothing for the
-  // caller to choose here. Navbar used to pass 'login' or 'register'.
-  const handleOpenAuth = () => setIsAuthOpen(true);
-
   return (
     <div className="min-h-screen theme-bg-main theme-text-main relative">
       {/* Looping particle-wave video, behind everything. Renders nothing until
@@ -60,7 +54,7 @@ function LandingPage() {
       {/* Scroll-following Guidance Curve Beam */}
       <ScrollPriceGraph />
 
-      <Navbar onOpenAuth={handleOpenAuth} />
+      <Navbar />
 
       <Hero onAddProductFromUrl={handleAddProductFromUrl} />
 
@@ -76,8 +70,6 @@ function LandingPage() {
         isOpen={isDownloadOpen}
         onClose={() => setIsDownloadOpen(false)}
       />
-
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
       <NotificationToast
         toastMessage={toastMessage}
