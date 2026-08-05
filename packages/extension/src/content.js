@@ -581,12 +581,25 @@ function scheduleEvaluate(delay = 1200) {
 if (!window.__ocularContentLoaded) {
   window.__ocularContentLoaded = true;
 
-  new MutationObserver(() => {
+  const checkUrlChange = () => {
     if (location.href !== lastUrl) {
       lastUrl = location.href;
       scheduleEvaluate(1500);
     }
-  }).observe(document, { subtree: true, childList: true });
+  };
+
+  window.addEventListener('popstate', checkUrlChange);
+  window.addEventListener('hashchange', checkUrlChange);
+
+  let urlCheckTimer = null;
+  new MutationObserver(() => {
+    if (location.href !== lastUrl && !urlCheckTimer) {
+      urlCheckTimer = setTimeout(() => {
+        urlCheckTimer = null;
+        checkUrlChange();
+      }, 300);
+    }
+  }).observe(document.head || document.documentElement, { subtree: true, childList: true });
 
   // Answers the background worker during a hidden-tab check.
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

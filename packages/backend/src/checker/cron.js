@@ -48,12 +48,13 @@ export async function runCron(env) {
     limit: MAX_CHECKS_PER_CRON * 2,
   });
 
-  const groups = groupByHost(selectBatch(candidates));
+  const groups = groupByHost(selectBatch(candidates || []));
 
   await Promise.all(
     [...groups.values()].map(async (products) => {
-      for (const product of products) {
-        await safeCheckOne(env, product);
+      for (let i = 0; i < products.length; i += 1) {
+        if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1500));
+        await safeCheckOne(env, products[i]);
       }
     })
   );
@@ -76,7 +77,7 @@ function groupByHost(products) {
  * Spread work across hosts so one large watchlist can't concentrate traffic on a
  * single retailer — which is the fastest way to get the whole worker blocked.
  */
-export function selectBatch(candidates) {
+export function selectBatch(candidates = []) {
   const perHost = new Map();
   const batch = [];
 
@@ -120,9 +121,9 @@ async function safeCheckOne(env, product) {
     await checkOne(env, product);
   } catch (error) {
     console.error("[Checker]", {
-      productId: product.id,
-      host: product.hostname,
-      error: error.message,
+      productId: product?.id,
+      host: product?.hostname,
+      error: error?.message || String(error),
     });
   }
 }
@@ -131,10 +132,13 @@ export async function checkOne(env, product, fetchImpl = fetchPage) {
   const now = Date.now();
   let result;
 
+  const targetUrl = product.url || product.canonical_url;
+  const canonicalUrl = product.canonical_url || product.url;
+
   try {
-    const response = await fetchImpl(product.url);
+    const response = await fetchImpl(targetUrl);
     result = response.ok
-      ? scanHtml(await response.text(), product.canonical_url)
+      ? scanHtml(await response.text(), canonicalUrl)
       : { ok: false, reason: failureReasonFromResponse(response.status) };
   } catch (error) {
     result = { ok: false, reason: error.name === 'AbortError' ? 'timeout' : 'fetch-failed' };
@@ -143,11 +147,12 @@ export async function checkOne(env, product, fetchImpl = fetchPage) {
   if (!result.ok) {
     const failures = (product.fail_count || 0) + 1;
     const blockedUntil = now + backoffFor(failures);
+    const reason = ('reason' in result && result.reason) || 'unknown';
 
     console.error('[Checker]', {
       productId: product.id,
       host: product.hostname,
-      reason: result.reason,
+      reason,
       failures,
       blockedUntil: new Date(blockedUntil).toISOString(),
     });
@@ -156,7 +161,7 @@ export async function checkOne(env, product, fetchImpl = fetchPage) {
       now,
       failures,
       blockedUntil,
-      reason: result.reason,
+      reason,
     });
     return;
   }

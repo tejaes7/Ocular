@@ -99,18 +99,27 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SYNC_ALARM) syncIfEnabled().catch(console.error);
 });
 
+let syncing = false;
+
 async function syncIfEnabled() {
-  const settings = await getSettings();
-  if (!syncConfigured(settings)) return { ok: false, error: 'Sync is off.' };
+  if (syncing) return { ok: false, error: 'Sync in progress.' };
+  syncing = true;
 
-  const result = await runSync(settings);
-  if (!result.ok) {
-    console.warn('Ocular: sync failed —', result.error);
+  try {
+    const settings = await getSettings();
+    if (!syncConfigured(settings)) return { ok: false, error: 'Sync is off.' };
+
+    const result = await runSync(settings);
+    if (!result.ok) {
+      console.warn('Ocular: sync failed —', result.error);
+      return result;
+    }
+
+    await applyCatchUp(result.catchUp || []);
     return result;
+  } finally {
+    syncing = false;
   }
-
-  await applyCatchUp(result.catchUp || []);
-  return result;
 }
 
 /**

@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { parsePrice } from '../src/extract.js';
+import { money } from '../src/format.js';
 import { canonicalizeUrl, looksLikeProductPage, siteLabel } from '../src/sites.js';
+
+test('money helper formats currencies with appropriate locales', () => {
+  assert.equal(money(129999, 'INR'), '₹1,29,999');
+  assert.equal(money(129999, 'USD'), '$129,999');
+  assert.equal(money(129999.5, 'USD'), '$129,999.50');
+});
 
 test('parsePrice handles Indian lakh grouping', () => {
   assert.deepEqual(parsePrice('₹1,29,999'), { value: 129999, currency: 'INR' });

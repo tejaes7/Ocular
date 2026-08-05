@@ -19,6 +19,12 @@ const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
  * pre-sale price spike can't drag the "usual price" upward and make a fake
  * discount look real.
  */
+function medianOfSorted(arr) {
+  if (!arr || !arr.length) return 0;
+  const mid = Math.floor(arr.length / 2);
+  return arr.length % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+}
+
 export function summarizeHistory(history) {
   if (!history?.length) return null;
 
@@ -35,7 +41,7 @@ export function summarizeHistory(history) {
     current: prices[prices.length - 1],
     min: sorted[0],
     max: sorted[sorted.length - 1],
-    median90: recentSorted[Math.floor(recentSorted.length / 2)],
+    median90: medianOfSorted(recentSorted),
     first: prices[0],
     points: history.length,
     since: history[0].ts,
@@ -164,7 +170,7 @@ export function repairHistory(history = []) {
   }
 
   const sorted = trusted.map((point) => point.price).sort((a, b) => a - b);
-  const stats = { median90: sorted[Math.floor(sorted.length / 2)] };
+  const stats = { median90: medianOfSorted(sorted) };
 
   const kept = [];
   const dropped = [];

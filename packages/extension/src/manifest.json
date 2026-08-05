@@ -19,6 +19,18 @@
   "host_permissions": [
     "https://www.amazon.in/*",
     "https://www.amazon.com/*",
+    "https://www.amazon.co.uk/*",
+    "https://www.amazon.de/*",
+    "https://www.amazon.fr/*",
+    "https://www.amazon.it/*",
+    "https://www.amazon.es/*",
+    "https://www.amazon.ae/*",
+    "https://www.amazon.sa/*",
+    "https://www.amazon.sg/*",
+    "https://www.amazon.com.au/*",
+    "https://www.amazon.co.jp/*",
+    "https://www.amazon.com.br/*",
+    "https://www.amazon.ca/*",
     "https://www.flipkart.com/*",
     "https://www.myntra.com/*",
     "https://www.ajio.com/*",
@@ -35,8 +47,13 @@
     "https://www.jiomart.com/*",
     "https://www.nike.com/*",
     "https://www.adidas.co.in/*",
+    "https://www.adidas.com/*",
+    "https://www.adidas.co.uk/*",
+    "https://www.adidas.de/*",
     "https://in.puma.com/*",
-    "https://www.decathlon.in/*"
+    "https://www.puma.com/*",
+    "https://www.decathlon.in/*",
+    "https://www.decathlon.com/*"
   ],
   "optional_host_permissions": [
     "*://*/*"
@@ -66,6 +83,18 @@
       "matches": [
         "https://www.amazon.in/*",
         "https://www.amazon.com/*",
+        "https://www.amazon.co.uk/*",
+        "https://www.amazon.de/*",
+        "https://www.amazon.fr/*",
+        "https://www.amazon.it/*",
+        "https://www.amazon.es/*",
+        "https://www.amazon.ae/*",
+        "https://www.amazon.sa/*",
+        "https://www.amazon.sg/*",
+        "https://www.amazon.com.au/*",
+        "https://www.amazon.co.jp/*",
+        "https://www.amazon.com.br/*",
+        "https://www.amazon.ca/*",
         "https://www.flipkart.com/*",
         "https://www.myntra.com/*",
         "https://www.ajio.com/*",
@@ -82,10 +111,14 @@
         "https://www.jiomart.com/*",
         "https://www.nike.com/*",
         "https://www.adidas.co.in/*",
+        "https://www.adidas.com/*",
+        "https://www.adidas.co.uk/*",
+        "https://www.adidas.de/*",
         "https://in.puma.com/*",
-        "https://www.decathlon.in/*"
+        "https://www.puma.com/*",
+        "https://www.decathlon.in/*",
+        "https://www.decathlon.com/*"
       ],
-      
       "js": [
         "content.js"
       ],
@@ -104,6 +137,18 @@
       "matches": [
         "https://www.amazon.in/*",
         "https://www.amazon.com/*",
+        "https://www.amazon.co.uk/*",
+        "https://www.amazon.de/*",
+        "https://www.amazon.fr/*",
+        "https://www.amazon.it/*",
+        "https://www.amazon.es/*",
+        "https://www.amazon.ae/*",
+        "https://www.amazon.sa/*",
+        "https://www.amazon.sg/*",
+        "https://www.amazon.com.au/*",
+        "https://www.amazon.co.jp/*",
+        "https://www.amazon.com.br/*",
+        "https://www.amazon.ca/*",
         "https://www.flipkart.com/*",
         "https://www.myntra.com/*",
         "https://www.ajio.com/*",
@@ -120,8 +165,13 @@
         "https://www.jiomart.com/*",
         "https://www.nike.com/*",
         "https://www.adidas.co.in/*",
+        "https://www.adidas.com/*",
+        "https://www.adidas.co.uk/*",
+        "https://www.adidas.de/*",
         "https://in.puma.com/*",
-        "https://www.decathlon.in/*"
+        "https://www.puma.com/*",
+        "https://www.decathlon.in/*",
+        "https://www.decathlon.com/*"
       ]
     }
   ]

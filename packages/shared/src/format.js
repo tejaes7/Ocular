@@ -1,13 +1,15 @@
 /** Formatting helpers shared by the popup, the in-page panel and the options UI. */
 
 const SYMBOLS = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AED: 'د.إ', SGD: 'S$' };
+const LOCALES = { INR: 'en-IN', USD: 'en-US', EUR: 'de-DE', GBP: 'en-GB', CAD: 'en-CA', AUD: 'en-AU' };
 
 export function money(value, currency = 'INR') {
   if (value == null || !Number.isFinite(Number(value))) return '—';
   const symbol = SYMBOLS[currency] ?? '';
+  const locale = LOCALES[currency] ?? 'en-US';
   const rounded = Number(value);
   const decimals = Number.isInteger(rounded) ? 0 : 2;
-  return `${symbol}${rounded.toLocaleString('en-IN', {
+  return `${symbol}${rounded.toLocaleString(locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })}`;

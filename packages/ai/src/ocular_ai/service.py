@@ -50,7 +50,9 @@ def verdict(request: VerdictRequest) -> dict:
 
     try:
         features = extract_features(history)
-    except ValueError:
+        return baseline.judge(features)
+    except Exception as err:
+        log.warning("verdict calculation failed, falling back to neutral: %s", err)
         return {
             "verdict": "neutral",
             "confidence": "low",
@@ -58,8 +60,6 @@ def verdict(request: VerdictRequest) -> dict:
             "fairPrice": None,
             "model": "baseline-v1",
         }
-
-    return baseline.judge(features)
 
 
 @app.post("/extract", response_model=ExtractResponse)

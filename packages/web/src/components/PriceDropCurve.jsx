@@ -232,7 +232,7 @@ export default function PriceDropCurve({ onTriggerToast }) {
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t theme-border">
             <div className="flex items-center gap-2 text-xs theme-text-muted font-medium">
               <Bell size={15} className="text-emerald-600 " />
-              <span>Real-Time Watcher Active: Automatic Telegram & Web Push Alerts</span>
+              <span>Real-Time Watcher Active: Automatic Email & Browser Price Drop Alerts</span>
             </div>
 
             <button

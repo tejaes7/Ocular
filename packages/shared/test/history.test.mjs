@@ -70,6 +70,17 @@ test('summarizeHistory falls back to the full series when the 90-day window is e
   assert.ok(Number.isFinite(result.median90));
 });
 
+test('summarizeHistory calculates true median for even-length price series', () => {
+  const history = [100, 200].map((price, i) => ({
+    ts: Date.now() + i,
+    lastSeen: Date.now() + i,
+    price,
+    inStock: true,
+  }));
+  const result = summarizeHistory(history);
+  assert.equal(result.median90, 150);
+});
+
 test('summarizeHistory returns null for an empty history', () => {
   assert.equal(summarizeHistory([]), null);
   assert.equal(summarizeHistory(null), null);

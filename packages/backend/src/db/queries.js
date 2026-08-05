@@ -18,6 +18,7 @@ export async function touchDevice(env, deviceId, now) {
 }
 
 export function upsertProductStatements(env, { deviceId, product, hostname, now }) {
+  const cleanTitle = typeof product.title === 'string' && product.title.trim() ? product.title.trim() : null;
   return [
     env.DB.prepare(
       `INSERT INTO products (id, device_id, user_id, url, canonical_url, hostname, title, currency, added_at)
@@ -27,7 +28,7 @@ export function upsertProductStatements(env, { deviceId, product, hostname, now 
          canonical_url = excluded.canonical_url,
          hostname = excluded.hostname,
          user_id = COALESCE(excluded.user_id, (SELECT user_id FROM devices WHERE id = ?), products.user_id),
-         title = COALESCE(excluded.title, products.title)`
+         title = COALESCE(NULLIF(excluded.title, ''), products.title)`
     ).bind(
       product.id,
       deviceId,
@@ -35,7 +36,7 @@ export function upsertProductStatements(env, { deviceId, product, hostname, now 
       product.url || product.canonicalUrl,
       product.canonicalUrl,
       hostname,
-      product.title || null,
+      cleanTitle,
       product.currency || 'INR',
       now,
       deviceId
@@ -131,6 +132,7 @@ export async function dueProducts(env, { now, intervalMs, limit }) {
 }
 
 export async function recordSuccess(env, product, { now, price, inStock, title }) {
+  const cleanTitle = typeof title === 'string' && title.trim() ? title.trim() : null;
   return env.DB.batch([
     env.DB.prepare(
       `INSERT OR IGNORE INTO prices (device_id, product_id, ts, price, in_stock)
@@ -139,9 +141,9 @@ export async function recordSuccess(env, product, { now, price, inStock, title }
 
     env.DB.prepare(
       `UPDATE products SET fail_count = 0, blocked_until = 0, last_checked_at = ?,
-         last_price = ?, last_error = NULL, title = COALESCE(title, ?)
+         last_price = ?, last_error = NULL, title = COALESCE(NULLIF(?, ''), title)
        WHERE device_id = ? AND id = ?`
-    ).bind(now, price, title || null, product.device_id, product.id),
+    ).bind(now, price, cleanTitle, product.device_id, product.id),
   ]);
 }
 
