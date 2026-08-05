@@ -50,13 +50,13 @@ export async function runCron(env) {
 
   const groups = groupByHost(selectBatch(candidates));
 
-await Promise.all(
-  [...groups.values()].map(async (products) => {
-    for (const product of products) {
-      await safeCheckOne(env, product);
-    }
-  })
-);
+  await Promise.all(
+    [...groups.values()].map(async (products) => {
+      for (const product of products) {
+        await safeCheckOne(env, product);
+      }
+    })
+  );
 }
 
 function groupByHost(products) {
