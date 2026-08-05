@@ -1,88 +1,266 @@
 @import './ui/tokens.css';
 
-.wrap {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 88px 28px 96px;
+:root {
+  --gemini-bg: #131314;
+  --gemini-surface: #1e1f20;
+  --gemini-surface-hover: #28292a;
+  --gemini-border: rgba(255, 255, 255, 0.08);
+  --gemini-border-strong: rgba(255, 255, 255, 0.16);
+  --gemini-text-main: #e3e3e3;
+  --gemini-text-sub: #c4c7c5;
+  --gemini-text-muted: #8e918f;
+  --gemini-blue: #a8c7fa;
+  --gemini-blue-bg: #040e25;
 }
 
-.wordmark {
-  display: inline-flex;
+body {
+  margin: 0;
+  background-color: var(--gemini-bg) !important;
+  color: var(--gemini-text-main) !important;
+  font-family: 'Google Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Gemini Ambient Background Glow */
+.gemini-ambient {
+  position: fixed;
+  top: -150px;
+  left: 30%;
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(124, 172, 248, 0.07) 0%, rgba(155, 114, 203, 0.05) 45%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+
+/* Topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 48px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gemini-text-main);
+  letter-spacing: -0.02em;
+}
+
+.model-badge {
+  display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-h1 {
-  margin: 20px 0 10px;
-  font-size: 30px;
-  font-weight: 640;
-  letter-spacing: -0.035em;
-  line-height: 1.12;
-}
-
-.lede {
-  margin: 0 0 52px;
-  max-width: 42ch;
-  font-size: 14.5px;
-  line-height: 1.6;
-  color: var(--ink-2);
-}
-
-/*
- * Steps are a numbered list with hairline rules — no filled circles, no
- * connector spine. The number is set in mono so it reads as a marker rather
- * than as decoration.
- */
-.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
-
-.steps li {
-  display: grid;
-  grid-template-columns: 30px 1fr;
-  gap: 4px;
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
-  counter-increment: step;
-}
-
-.steps li::before {
-  content: counter(step, decimal-leading-zero);
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.7;
-  color: var(--ink-3);
-}
-
-.steps h2 { margin: 0 0 3px; font-size: 14px; font-weight: 570; letter-spacing: -0.01em; }
-.steps p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-2); }
-
-.key {
-  display: inline-block;
-  padding: 0 5px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-xs);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: var(--gemini-surface);
+  border: 1px solid var(--gemini-border);
   font-size: 12px;
+  font-weight: 500;
+  color: var(--gemini-text-sub);
 }
 
-.note {
-  margin-top: 40px;
-  padding-left: 14px;
-  border-left: 2px solid var(--line-strong);
+.sparkle-icon {
+  display: block;
 }
 
-.note h2 {
-  margin: 0 0 5px;
-  font-size: 10px;
+/* Hero Section */
+.hero {
+  margin-bottom: 40px;
+}
+
+.gemini-greeting {
+  margin: 0 0 16px;
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  display: flex;
+  flex-direction: column;
+}
+
+.gemini-sparkle {
+  background: linear-gradient(135deg, #7cacff 0%, #c48df6 50%, #f68dae 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-3);
 }
 
-.note p { margin: 0; max-width: 50ch; font-size: 13px; line-height: 1.65; color: var(--ink-2); }
+.hero-title {
+  color: var(--gemini-text-main);
+}
 
-.cta { display: flex; gap: 8px; margin-top: 44px; }
+.hero-sub {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--gemini-text-sub);
+  max-width: 54ch;
+}
+
+/* Cards Grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.gemini-card {
+  background: var(--gemini-surface);
+  border: 1px solid var(--gemini-border);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.gemini-card:hover {
+  background: var(--gemini-surface-hover);
+  border-color: var(--gemini-border-strong);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gemini-blue);
+  background: rgba(168, 199, 250, 0.1);
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(168, 199, 250, 0.08);
+}
+
+.gemini-card h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gemini-text-main);
+  line-height: 1.3;
+}
+
+.gemini-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--gemini-text-sub);
+}
+
+/* Info Card */
+.gemini-info-card {
+  display: flex;
+  gap: 16px;
+  background: var(--gemini-surface);
+  border: 1px solid var(--gemini-border);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 40px;
+  align-items: flex-start;
+}
+
+.info-sparkle {
+  padding: 6px;
+  background: rgba(168, 199, 250, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info-text h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gemini-text-main);
+}
+
+.info-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--gemini-text-sub);
+}
+
+/* Gemini Action Bar */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gemini-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 24px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.gemini-btn.primary {
+  background: var(--gemini-blue);
+  color: var(--gemini-blue-bg);
+}
+
+.gemini-btn.primary:hover {
+  background: #c3d9ff;
+  transform: translateY(-1px);
+}
+
+.gemini-btn.secondary {
+  background: var(--gemini-surface);
+  color: var(--gemini-text-main);
+  border: 1px solid var(--gemini-border);
+}
+
+.gemini-btn.secondary:hover {
+  background: var(--gemini-surface-hover);
+  border-color: var(--gemini-border-strong);
+}

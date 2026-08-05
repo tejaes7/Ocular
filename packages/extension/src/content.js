@@ -255,20 +255,21 @@ async function togglePanel() {
  * the status panel keeps the quieter header so the numbers stay the loudest
  * thing on it.
  */
-function panelShell({ body, actions = '', foot = '', branded = false }) {
+function panelShell({ body, actions = '', foot = '' }) {
   let mark = '';
-  if (branded) {
-    try {
-      mark = `<img class="ocular-panel__mark" src="${chrome.runtime.getURL('icons/ocular-mark.png')}" alt="" aria-hidden="true">`;
-    } catch {
-      // Orphaned script after a reload — the wordmark alone still identifies it.
-      mark = '';
-    }
+  try {
+    mark = `<img class="ocular-panel__mark" src="${chrome.runtime.getURL('icons/ocular-mark.png')}" alt="Ocular" aria-hidden="true">`;
+  } catch {
+    mark = '';
   }
 
   return `
-    <div class="ocular-panel__head${branded ? ' ocular-panel__head--brand' : ''}">
-      ${mark}<span class="ocular-panel__brand">Ocular</span>
+    <div class="ocular-panel__ambient" aria-hidden="true"></div>
+    <div class="ocular-panel__head">
+      <div class="ocular-panel__brand-wrap">
+        ${mark}
+        <span class="ocular-panel__brand">Ocular</span>
+      </div>
       <button class="ocular-panel__x" data-act="close" aria-label="Close">&times;</button>
     </div>
     <div class="ocular-panel__body">${body}</div>
@@ -300,29 +301,20 @@ async function trackFromPanel(panel, trigger) {
 
   setButtonState({ tracked: true });
 
-  // Deliberately no toast here. The panel is already open and about to show the
-  // price, the lowest seen and the usual price — a floating "Watching at ₹X" in
-  // another corner repeated one of those numbers somewhere the eye wasn't.
   const state = await send({ type: 'status', url: location.href });
   if (state.ok && state.tracked) {
     renderPanel(panel, state);
     return;
   }
 
-  // Only if the panel can't confirm it does the toast earn its place.
   closePanel();
   flash(`Watching at ${money(response.product.lastPrice, response.product.currency)}`);
 }
 
 /**
  * What Ocular does, shown before anything is tracked.
- *
- * This is the first thing most people see after clicking an unfamiliar dot on a
- * retailer's page, so it answers "what is this?" rather than assuming they know.
  */
 function renderIntroPanel(panel) {
-  // The price is read off the page rather than described, so the panel shows that
-  // Ocular can already see this product instead of promising that it can.
   const observed = scrape();
   const priceNow =
     observed.ok && Number.isFinite(observed.price)
@@ -330,18 +322,26 @@ function renderIntroPanel(panel) {
       : 'Not readable here';
 
   panel.innerHTML = panelShell({
-    branded: true,
     body: `
       <div class="ocular-panel__lede">Not watched</div>
-      <div class="ocular-panel__ledger">
-        <div><span>Price now</span><b>${escapeHtml(priceNow)}</b></div>
-        <div><span>Readings</span><b>0</b></div>
-        <div><span>Checks</span><b class="ocular-panel__ledger-note">On visit, then hourly</b></div>
-        <div><span>Alerts</span><b class="ocular-panel__ledger-note">Against the 90-day median</b></div>
+      <div class="ocular-panel__cards-container">
+        <div class="ocular-panel__row ocular-panel__row--hero">
+          <span>Price now</span><b>${escapeHtml(priceNow)}</b>
+        </div>
+        <div class="ocular-panel__row">
+          <span>Readings</span><b>0</b>
+        </div>
+        <div class="ocular-panel__row">
+          <span>Checks</span><b class="ocular-panel__ledger-note">On visit, then hourly</b>
+        </div>
+        <div class="ocular-panel__row">
+          <span>Alerts</span><b class="ocular-panel__ledger-note">Against the 90-day median</b>
+        </div>
       </div>
     `,
-    actions: '<button data-act="track">Watch this price</button>',
+    actions: '<button data-act="track" class="gemini-btn primary">Watch this price</button>',
   });
+  anchorPanel(panel);
 
   panel.onclick = (event) => {
     const trigger = event.target.closest('button[data-act]');
@@ -354,7 +354,7 @@ function renderIntroPanel(panel) {
 function renderPanelError(panel, text) {
   panel.innerHTML = panelShell({
     body: `<div class="ocular-panel__msg ocular-panel__msg--bad">${escapeHtml(text)}</div>`,
-    actions: '<button data-act="reload">Refresh page</button>',
+    actions: '<button data-act="reload" class="ocular-panel__btn primary">Refresh page</button>',
   });
   anchorPanel(panel);
 
@@ -399,19 +399,21 @@ function renderPanel(panel, state) {
   panel.innerHTML = panelShell({
     body: `
       <p class="ocular-panel__title">${escapeHtml(product.title)}</p>
-      ${rows
-        .map(
-          ([label, value, hero]) =>
-            `<div class="ocular-panel__row${hero ? ' ocular-panel__row--hero' : ''}">
-               <span>${label}</span><b>${escapeHtml(value)}</b>
-             </div>`
-        )
-        .join('')}
+      <div class="ocular-panel__cards-container">
+        ${rows
+          .map(
+            ([label, value, hero]) =>
+              `<div class="ocular-panel__row${hero ? ' ocular-panel__row--hero' : ''}">
+                 <span>${label}</span><b>${escapeHtml(value)}</b>
+               </div>`
+          )
+          .join('')}
+      </div>
       ${health}
     `,
     actions: `
-      <button data-act="check">Check now</button>
-      <button data-act="stop">Stop watching</button>
+      <button data-act="check" class="ocular-panel__btn primary">Check now</button>
+      <button data-act="stop" class="ocular-panel__btn secondary">Stop watching</button>
     `,
     foot: `v${escapeHtml(version)}`,
   });

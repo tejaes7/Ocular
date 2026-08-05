@@ -44,13 +44,9 @@ let resizeBound = false;
 
 async function loadPosition() {
   try {
-    const bag = await chrome.storage.local.get(STORAGE_KEY);
-    return bag[STORAGE_KEY] || null;
-  } catch {
-    // Extension reloaded; this page's script is orphaned. The corner default is
-    // a fine outcome — not worth surfacing.
-    return null;
-  }
+    await chrome.storage.local.remove(STORAGE_KEY);
+  } catch {}
+  return null;
 }
 
 async function savePosition(position) {
@@ -109,12 +105,23 @@ export function resolvePosition(stored, size, view) {
   return { x: clamp(x, EDGE_MARGIN_PX, free.x), y: clamp(y, EDGE_MARGIN_PX, free.y) };
 }
 
-function applyPosition(element, { x, y }) {
+function applyPosition(element, pos) {
   // `!important` mirrors content.css — see the header note.
-  element.style.setProperty('left', `${Math.round(x)}px`, 'important');
-  element.style.setProperty('top', `${Math.round(y)}px`, 'important');
-  element.style.setProperty('right', 'auto', 'important');
-  element.style.setProperty('bottom', 'auto', 'important');
+  if (pos.bottom !== undefined) {
+    element.style.setProperty('bottom', `${Math.round(pos.bottom)}px`, 'important');
+    element.style.setProperty('top', 'auto', 'important');
+  } else if (pos.y !== undefined) {
+    element.style.setProperty('top', `${Math.round(pos.y)}px`, 'important');
+    element.style.setProperty('bottom', 'auto', 'important');
+  }
+
+  if (pos.right !== undefined) {
+    element.style.setProperty('right', `${Math.round(pos.right)}px`, 'important');
+    element.style.setProperty('left', 'auto', 'important');
+  } else if (pos.x !== undefined) {
+    element.style.setProperty('left', `${Math.round(pos.x)}px`, 'important');
+    element.style.setProperty('right', 'auto', 'important');
+  }
 }
 
 /**
@@ -159,18 +166,7 @@ export function makeDraggable(element, { onMove } = {}) {
 
   managed = element;
   bindResize();
-
-  // Restore a saved position. Applied synchronously from cache when we already
-  // have it, so a re-render doesn't visibly jump.
-  if (cachedPosition) {
-    applyPosition(element, resolvePosition(cachedPosition, sizeOf(element), viewport()));
-  } else {
-    loadPosition().then((stored) => {
-      if (!stored || !element.isConnected) return;
-      cachedPosition = stored;
-      applyPosition(element, resolvePosition(stored, sizeOf(element), viewport()));
-    });
-  }
+  cachedPosition = null;
 
   element.addEventListener('pointerdown', (event) => {
     // Primary button / first contact only — right-click must still open a menu.
@@ -239,7 +235,7 @@ export function makeDraggable(element, { onMove } = {}) {
     // the user had deliberately chosen, which is worse than the tidiness it
     // bought. The clamp during the drag already guarantees it stays on screen.
     const rect = element.getBoundingClientRect();
-    savePosition({ x: rect.left, y: rect.top, vw: window.innerWidth, vh: window.innerHeight });
+    savePosition({ x: rect.left, y: rect.top, vw: window.innerWidth, vh: window.innerHeight, dragged: true });
   };
 
   element.addEventListener('pointerup', endDrag);
@@ -273,18 +269,28 @@ export function makeDraggable(element, { onMove } = {}) {
 export function placeNear(element, anchor, { gap = 10 } = {}) {
   const rect = anchor.getBoundingClientRect();
   const size = sizeOf(element);
-  const free = freeSpace(size, viewport());
+  const view = viewport();
+  const free = freeSpace(size, view);
 
-  // Prefer above the anchor; fall below when there isn't room up there.
-  const above = rect.top - gap - size.height;
-  const top = above >= EDGE_MARGIN_PX ? above : rect.bottom + gap;
+  const isLowerHalf = rect.top > view.height / 2;
+  const pos = {};
+
+  if (isLowerHalf) {
+    // When anchor is in lower half of viewport, position panel ABOVE the anchor by setting `bottom`.
+    // This forces the panel to expand UPWARDS into the open space above as content loads,
+    // so it can NEVER extend downward below the screen or taskbar!
+    const bottom = view.height - rect.top + gap;
+    pos.bottom = clamp(bottom, EDGE_MARGIN_PX, view.height - EDGE_MARGIN_PX - 60);
+  } else {
+    // When anchor is in upper half of viewport, position panel BELOW the anchor by setting `top`.
+    const top = rect.bottom + gap;
+    pos.y = clamp(top, EDGE_MARGIN_PX, free.y);
+  }
 
   // Right-align to the anchor, which keeps the panel visually attached to a
   // button sitting near the right edge.
   const left = rect.right - size.width;
+  pos.x = clamp(left, EDGE_MARGIN_PX, free.x);
 
-  applyPosition(element, {
-    x: clamp(left, EDGE_MARGIN_PX, free.x),
-    y: clamp(top, EDGE_MARGIN_PX, free.y),
-  });
+  applyPosition(element, pos);
 }

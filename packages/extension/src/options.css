@@ -1,210 +1,384 @@
 @import './ui/tokens.css';
 
-/*
- * Type scale note: this page is a full browser tab, not the 380px popup, so it
- * gets a larger scale than the shared tokens. The popup is width-constrained and
- * deliberately stays compact; settings are read, not glanced at. Sizes here
- * override the primitives rather than changing tokens.css, so the popup and the
- * in-page panel are unaffected.
- */
-
-body { background: var(--bg); }
-
-.page {
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 52px 28px 96px;
+:root {
+  --gemini-bg: #131314;
+  --gemini-surface: #1e1f20;
+  --gemini-surface-hover: #28292a;
+  --gemini-border: rgba(255, 255, 255, 0.08);
+  --gemini-border-strong: rgba(255, 255, 255, 0.16);
+  --gemini-text-main: #e3e3e3;
+  --gemini-text-sub: #c4c7c5;
+  --gemini-text-muted: #8e918f;
+  --gemini-blue: #a8c7fa;
+  --gemini-blue-bg: #040e25;
 }
 
-.page__head {
+body {
+  margin: 0;
+  background-color: var(--gemini-bg) !important;
+  color: var(--gemini-text-main) !important;
+  font-family: 'Google Sans', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Gemini Ambient Glow Background */
+.gemini-ambient {
+  position: fixed;
+  top: -150px;
+  left: 30%;
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(124, 172, 248, 0.07) 0%, rgba(155, 114, 203, 0.05) 45%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* Topbar */
+.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 22px;
+  margin-bottom: 32px;
 }
 
-.wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 17px;
-  font-weight: 620;
-  letter-spacing: -0.01em;
-}
-
-.version { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
-
-.lede {
-  margin: 0 0 8px;
-  max-width: 56ch;
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--ink-2);
-}
-
-/*
- * Sections are a small-caps heading over a rule — no shadowed card wrappers.
- * The rules do the grouping, which keeps the page flat and legible.
- */
-.section { margin-top: 40px; }
-
-.section > h2 {
+.brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 2px;
-  font-size: 11px;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.brand-title {
+  font-size: 20px;
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--gemini-text-main);
+  letter-spacing: -0.02em;
 }
 
-.section > p.note {
-  margin: 10px 0 0;
-  max-width: 62ch;
-  font-size: 14px;
+.version {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gemini-text-muted);
+}
+
+/* Hero Section */
+.hero {
+  margin-bottom: 36px;
+}
+
+.gemini-greeting {
+  margin: 0 0 12px;
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  display: flex;
+  flex-direction: column;
+}
+
+.gemini-sparkle {
+  background: linear-gradient(135deg, #7cacff 0%, #c48df6 50%, #f68dae 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 600;
+}
+
+.hero-title {
+  color: var(--gemini-text-main);
+}
+
+.lede {
+  margin: 0;
+  font-size: 15px;
   line-height: 1.6;
-  color: var(--ink-2);
+  color: var(--gemini-text-sub);
+  max-width: 56ch;
 }
 
+/* Gemini Card Section */
+.gemini-card {
+  background: var(--gemini-surface);
+  border: 1px solid var(--gemini-border);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 24px;
+  transition: border-color 0.2s ease;
+}
+
+.gemini-card:hover {
+  border-color: var(--gemini-border-strong);
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gemini-text-main);
+}
+
+.card-title .label {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gemini-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gemini-card > p.note {
+  margin: 0 0 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--gemini-text-sub);
+}
+
+/* Form Rows */
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 26px;
+  gap: 24px;
   padding: 16px 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--gemini-border);
 }
 
-.row:first-of-type { border-top-width: 1px; }
-.row--nested { padding-left: 20px; border-top: 0; padding-top: 0; margin-top: -6px; }
-.row--stack { align-items: flex-start; }
+.row:first-of-type {
+  border-top-width: 1px;
+}
 
-.row__text { flex: 1; min-width: 0; }
+.row--nested {
+  padding-left: 20px;
+  border-top: 0;
+  padding-top: 0;
+  margin-top: -4px;
+}
+
+.row__text {
+  flex: 1;
+  min-width: 0;
+}
 
 .row label {
   display: block;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 500;
+  color: var(--gemini-text-main);
 }
 
 .hint {
   margin: 4px 0 0;
-  max-width: 52ch;
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.55;
-  color: var(--ink-3);
+  color: var(--gemini-text-sub);
 }
 
-.control { flex: none; display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--ink-3); }
-.control .field { width: 180px; }
-.control .field--narrow { width: 86px; }
-.control .field--wide { width: 270px; }
-
-/* Inputs and buttons come from tokens.css at popup scale; bring them up to match
-   the larger type on this page, or the controls read as disabled next to it. */
-.page .field {
-  height: 32px;
-  padding: 0 9px;
-  font-size: 14px;
-}
-
-.page .btn {
-  height: 32px;
-  padding: 0 12px;
+.control {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13.5px;
+  color: var(--gemini-text-sub);
+}
+
+.control .field { width: 180px; }
+.control .field--narrow { width: 90px; }
+.control .field--wide { width: 260px; }
+
+/* Input Fields */
+.field {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--gemini-border-strong);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--gemini-text-main);
+  background: var(--gemini-bg);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.field:focus {
+  border-color: var(--gemini-blue);
+}
+
+.field:disabled {
+  opacity: 0.4;
 }
 
 code {
-  padding: 1px 5px;
-  border-radius: var(--r-xs);
+  padding: 2px 6px;
+  border-radius: 6px;
   font-family: var(--mono);
-  font-size: 13px;
-  background: var(--bg-hover);
+  font-size: 12.5px;
+  background: var(--gemini-bg);
+  color: var(--gemini-blue);
 }
 
 .mono {
   font-family: var(--mono);
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--gemini-text-sub);
   word-break: break-all;
   text-align: right;
-  max-width: 260px;
+  max-width: 240px;
 }
 
-/* Switch: monochrome. Colour in this UI means price direction, nothing else. */
+/* Gemini Switch Component */
 .switch {
   appearance: none;
   position: relative;
   flex: none;
-  width: 38px;
-  height: 22px;
+  width: 44px;
+  height: 24px;
   margin: 0;
-  border-radius: 999px;
-  background: var(--line-strong);
-  transition: background 0.15s;
+  border-radius: 9999px;
+  background: #28292a;
+  border: 1px solid var(--gemini-border-strong);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .switch::after {
   content: '';
   position: absolute;
-  top: 2.5px;
-  left: 2.5px;
-  width: 17px;
-  height: 17px;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: var(--bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  transition: transform 0.15s;
+  background: var(--gemini-text-sub);
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
-.switch:checked { background: var(--ink); }
-.switch:checked::after { transform: translateX(16px); }
-.switch:disabled { opacity: 0.4; }
+.switch:checked {
+  background: var(--gemini-blue-bg);
+  border-color: var(--gemini-blue);
+}
 
-/* Actions & status -------------------------------------------------------- */
+.switch:checked::after {
+  transform: translateX(20px);
+  background: var(--gemini-blue);
+}
 
+.switch:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Action Buttons */
 .actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   padding-top: 16px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--gemini-border);
 }
 
+.gemini-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 20px;
+  border-radius: 9999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+  font-family: inherit;
+}
+
+.gemini-btn.primary {
+  background: var(--gemini-blue);
+  color: var(--gemini-blue-bg);
+}
+
+.gemini-btn.primary:hover:not(:disabled) {
+  background: #c3d9ff;
+  transform: translateY(-1px);
+}
+
+.gemini-btn.secondary {
+  background: var(--gemini-bg);
+  color: var(--gemini-text-main);
+  border: 1px solid var(--gemini-border-strong);
+}
+
+.gemini-btn.secondary:hover:not(:disabled) {
+  background: var(--gemini-surface-hover);
+  border-color: var(--gemini-blue);
+}
+
+.gemini-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Status Messages */
 .status {
   margin: 10px 0 0;
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.55;
-  color: var(--ink-3);
+  color: var(--gemini-text-sub);
   white-space: pre-line;
 }
 
-.status--good { color: var(--down); }
-.status--bad { color: var(--up); }
+.status--good { color: #47cd89; }
+.status--bad { color: #f97066; }
 
 .diag {
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+  padding-top: 12px;
   font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.85;
-  color: var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--gemini-text-sub);
 }
 
-.diag b { color: var(--ink); font-weight: 500; }
+.diag b {
+  color: var(--gemini-text-main);
+  font-weight: 500;
+}
 
+/* Sticky Save Bar */
 .save-bar {
   position: sticky;
-  bottom: 0;
+  bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 36px;
-  padding: 16px 0;
-  border-top: 1px solid var(--line);
-  background: var(--bg);
+  gap: 16px;
+  margin-top: 24px;
+  padding: 14px 20px;
+  border-radius: 9999px;
+  background: rgba(30, 31, 32, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--gemini-border-strong);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-.save-bar .status { margin: 0; }
+.save-bar .status {
+  margin: 0;
+}
