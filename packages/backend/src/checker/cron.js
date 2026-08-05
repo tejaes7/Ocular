@@ -48,24 +48,30 @@ export async function runCron(env) {
     limit: MAX_CHECKS_PER_CRON * 2,
   });
 
-  const batch = selectBatch(candidates);
-  const CONCURRENCY = 4;
-  for (let i = 0; i < batch.length; i += CONCURRENCY) {
-    const chunk = batch.slice(i, i + CONCURRENCY);
-    await Promise.allSettled(
-      chunk.map((product) =>
-        checkOne(env, product).catch((error) => {
-          console.error('[Checker]', {
-            productId: product.id,
-            host: product.hostname,
-            error: error.message,
-          });
-        })
-      )
-    );
-  }
+  const groups = groupByHost(selectBatch(candidates));
+
+  await Promise.all(
+    [...groups.values()].map(async (products) => {
+      for (const product of products) {
+        await safeCheckOne(env, product);
+      }
+    })
+  );
 }
 
+function groupByHost(products) {
+  const groups = new Map();
+
+  for (const product of products) {
+    if (!groups.has(product.hostname)) {
+      groups.set(product.hostname, []);
+    }
+
+    groups.get(product.hostname).push(product);
+  }
+
+  return groups;
+}
 /**
  * Spread work across hosts so one large watchlist can't concentrate traffic on a
  * single retailer — which is the fastest way to get the whole worker blocked.
@@ -109,7 +115,17 @@ export function failureReasonFromResponse(status) {
       return 'blocked';
   }
 }
-
+async function safeCheckOne(env, product) {
+  try {
+    await checkOne(env, product);
+  } catch (error) {
+    console.error("[Checker]", {
+      productId: product.id,
+      host: product.hostname,
+      error: error.message,
+    });
+  }
+}
 // fetchImpl is injectable so the write path can be tested without real network I/O.
 export async function checkOne(env, product, fetchImpl = fetchPage) {
   const now = Date.now();

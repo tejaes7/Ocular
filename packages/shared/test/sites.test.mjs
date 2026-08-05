@@ -61,9 +61,6 @@ test('every site pack is reachable from the extension manifest', () => {
 
 test('manifest host_permissions and content_scripts stay in step', () => {
   const manifest = JSON.parse(read('../../extension/src/manifest.json'));
-
-  // A content script that runs on a host the extension cannot fetch is half a
-  // feature: the panel appears, and every background check fails.
   assert.deepEqual(
     [...manifest.content_scripts[0].matches].sort(),
     [...manifest.host_permissions].sort()

@@ -120,7 +120,142 @@ export const SITE_PACKS = [
       return url.pathname.includes('/product/') || /\/\d+\/?$/.test(url.pathname);
     },
   },
+{
+  id: 'boat',
+  label: 'boAt',
+  match: /(^|\.)boat-lifestyle\.com$/i,
 
+  price: [
+    '.product__price',
+    '.price-item--sale',
+    '.price__regular .price-item',
+    '[data-product-price]'
+  ],
+
+  listPrice: [
+    '.price-item--regular',
+    '.price__compare .price-item',
+    '.price-item--strike'
+  ],
+
+  title: [
+    'h1.product__title',
+    '.product__title',
+    'h1'
+  ],
+
+  image: [
+    '.product__media img',
+    '.product-gallery img',
+    '.product__image img'
+  ],
+
+  outOfStock: [
+    '.sold-out',
+    '.product-form__buttons [disabled]',
+    '.product-form__submit[disabled]'
+  ],
+
+  canonical(url) {
+    // Remove tracking parameters and trailing slash.
+    return `${url.origin}${url.pathname.replace(/\/$/, '')}`;
+  },
+
+  isProductPage(url) {
+    return /^\/products\//i.test(url.pathname);
+  },
+},
+{
+  id: 'noise',
+  label: 'Noise',
+  match: /(^|\.)gonoise\.com$/i,
+
+  price: [
+    '.price-item--sale',
+    '.price__sale .price-item',
+    '.price__regular .price-item',
+    '[data-product-price]'
+  ],
+
+  listPrice: [
+    '.price-item--regular',
+    '.price__compare .price-item',
+    '.price-item--strike'
+  ],
+
+  title: [
+    'h1.product__title',
+    '.product__title',
+    'h1'
+  ],
+
+  image: [
+    '.product__media img',
+    '.product-gallery img',
+    '.product__image img'
+  ],
+
+  outOfStock: [
+    '.sold-out',
+    '.product-form__buttons [disabled]',
+    '.product-form__submit[disabled]'
+  ],
+
+  canonical(url) {
+    return `${url.origin}${url.pathname.replace(/\/$/, '')}`;
+  },
+
+  isProductPage(url) {
+    return /^\/products\//i.test(url.pathname);
+  },
+},
+{
+  id: 'lenovo',
+  label: 'Lenovo',
+  match: /(^|\.)lenovo\.com$/i,
+
+  price: [
+    '[data-testid="sale-price"]',
+    '.price',
+    '.pricingSummary .price',
+    '[itemprop="price"]'
+  ],
+
+  listPrice: [
+    '.list-price',
+    '.strike-price',
+    '[data-testid="list-price"]'
+  ],
+
+  title: [
+    'h1',
+    '.productTitle',
+    '[data-testid="product-title"]'
+  ],
+
+  image: [
+    'img[itemprop="image"]',
+    '.hero img',
+    '.product-gallery img'
+  ],
+
+  canonical(url) {
+    const parts = url.pathname.split('/').filter(Boolean);
+
+    const index = parts.indexOf('p');
+    if (index === -1 || index === parts.length - 1) {
+      return `${url.origin}${url.pathname}`;
+    }
+
+    const productId = parts.at(-1);
+
+    return `${url.origin}/in/en/p/${productId}`;
+  },
+
+  isProductPage(url) {
+    return /^\/in\/en\/p\//i.test(url.pathname);
+  },
+},
   {
     id: 'nykaa',
     label: 'Nykaa',
