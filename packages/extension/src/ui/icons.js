@@ -26,6 +26,7 @@ export const icons = {
   check: svg('<path d="M3.2 8.4 6.3 11.5l6.5-7"/>'),
   close: svg('<path d="M4 4l8 8M12 4l-8 8"/>'),
   external: svg('<path d="M9.4 3h3.6v3.6"/><path d="M13 3 7.6 8.4"/><path d="M11.4 9.6v3.4H3V4.6h3.4"/>'),
+  bell: svg('<path d="M4 11a4 4 0 0 0 8 0V7a4 4 0 0 0-8 0v4z"/><path d="M2.5 11h11"/><path d="M6.5 13.5a1.5 1.5 0 0 0 3 0"/>'),
 };
 
 /** The wordmark glyph: an iris. Sized by the caller via CSS. */

@@ -546,6 +546,11 @@ const handlers = {
     await refreshBadge();
     return { ok: true };
   },
+
+  async getSettings() {
+    const settings = await getSettings();
+    return { ok: true, settings };
+  },
 };
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

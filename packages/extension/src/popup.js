@@ -318,6 +318,60 @@ async function withBusy(button, work) {
   return result;
 }
 
+async function renderEmailCard() {
+  const cardTitle = document.getElementById('email-card-title');
+  const cardSub = document.getElementById('email-card-subtitle');
+  const cardBtn = document.getElementById('email-login-btn');
+  if (!cardTitle || !cardBtn) return;
+
+  const response = await send({ type: 'getSettings' });
+  const settings = response?.settings || {};
+  const linked = Boolean(settings.sync?.linked);
+
+  if (linked) {
+    cardTitle.textContent = 'Email Alerts Active';
+    cardSub.textContent = 'Linked to account for price drop emails';
+    cardBtn.textContent = 'Logged in';
+    cardBtn.classList.add('email-card__btn--active');
+  } else {
+    cardTitle.textContent = 'Email ID';
+    cardSub.textContent = 'Set email to get price drop alerts';
+    cardBtn.textContent = 'Login';
+    cardBtn.classList.remove('email-card__btn--active');
+  }
+}
+
+document.getElementById('email-login-btn')?.addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const response = await send({ type: 'getSettings' });
+  const settings = response?.settings || {};
+
+  if (settings.sync?.linked) {
+    chrome.runtime.openOptionsPage();
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Connecting…';
+
+  const pairResult = await send({ type: 'pairUrl' });
+  if (pairResult.ok && pairResult.url) {
+    chrome.tabs.create({ url: pairResult.url });
+    button.textContent = 'Opened Site';
+  } else {
+    button.textContent = 'Configure Sync';
+    setTimeout(() => {
+      chrome.runtime.openOptionsPage();
+      renderEmailCard();
+    }, 1200);
+  }
+  button.disabled = false;
+});
+
+document.getElementById('bell-alerts')?.addEventListener('click', () => {
+  chrome.runtime.openOptionsPage();
+});
+
 document.getElementById('refresh').addEventListener('click', async (event) => {
   await withBusy(event.currentTarget, async () => {
     await send({ type: 'checkAll' });
@@ -340,7 +394,9 @@ document.getElementById('settings').addEventListener('click', () => chrome.runti
   document.getElementById('wordmark').insertAdjacentHTML('afterbegin', eyeMark);
   document.getElementById('refresh').innerHTML = icons.refresh;
   document.getElementById('export').innerHTML = icons.download;
+  const bellEl = document.getElementById('bell-alerts');
+  if (bellEl) bellEl.innerHTML = icons.bell;
   document.getElementById('settings').innerHTML = icons.sliders;
 
-  await Promise.all([refreshList(), renderBanner()]);
+  await Promise.all([refreshList(), renderBanner(), renderEmailCard()]);
 })();
