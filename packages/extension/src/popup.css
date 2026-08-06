@@ -107,20 +107,32 @@ body {
   color: var(--gemini-text-main);
 }
 
+.topbar__tools .iconbtn.iconbtn--active {
+  color: var(--gemini-blue) !important;
+  background: rgba(168, 199, 250, 0.12) !important;
+}
+
 .topbar__tools .iconbtn svg {
   width: 16px;
   height: 16px;
 }
 
+<<<<<<< HEAD
 /* Email Alert Login Card -------------------------------------------------- */
 
 .email-card {
+=======
+/* Login Banner ----------------------------------------------------------- */
+
+.login-card-banner {
+>>>>>>> 5d301d8445d3c19b4a2a08f803b6206e2e64289a
   position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+<<<<<<< HEAD
   margin: 10px 10px 4px;
   padding: 12px 14px;
   background: var(--gemini-surface);
@@ -142,11 +154,39 @@ body {
   font-weight: 700;
   color: var(--gemini-text-main);
   letter-spacing: -0.01em;
+=======
+  margin: 10px 14px 4px 14px;
+  padding: 10px 14px;
+  background: var(--gemini-surface);
+  border: 1px solid var(--gemini-border);
+  border-radius: 12px;
+}
+
+.login-card-banner__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.login-card-banner__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gemini-text-main);
+  letter-spacing: -0.01em;
+}
+
+.login-card-banner__sub {
+  font-size: 11px;
+  color: var(--gemini-text-sub);
+>>>>>>> 5d301d8445d3c19b4a2a08f803b6206e2e64289a
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+<<<<<<< HEAD
 .email-card__subtitle {
   font-size: 11.5px;
   font-weight: 400;
@@ -188,6 +228,45 @@ body {
 .email-card__btn--active:hover {
   background: rgba(71, 205, 137, 0.25);
   box-shadow: none;
+=======
+.login-card-banner__action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-card-banner__input {
+  width: 130px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  background: var(--gemini-bg);
+  color: var(--gemini-text-main);
+  border: 1px solid var(--gemini-border);
+  outline: none;
+}
+
+.login-card-banner__input:focus {
+  border-color: var(--gemini-blue);
+}
+
+.gemini-btn-login {
+  height: 28px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #5b5bd6;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.gemini-btn-login:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+>>>>>>> 5d301d8445d3c19b4a2a08f803b6206e2e64289a
 }
 
 /* Current-tab banner ------------------------------------------------------ */

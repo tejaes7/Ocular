@@ -54,7 +54,7 @@ function LandingPage() {
       {/* Scroll-following Guidance Curve Beam */}
       <ScrollPriceGraph />
 
-      <Navbar />
+      <Navbar onOpenDownload={() => setIsDownloadOpen(true)} />
 
       <Hero onAddProductFromUrl={handleAddProductFromUrl} />
 

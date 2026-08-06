@@ -390,6 +390,72 @@ document.getElementById('export').addEventListener('click', async (event) => {
 
 document.getElementById('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
+async function initNotifyToggle() {
+  const notifyBtn = document.getElementById('notify-toggle');
+  if (!notifyBtn) return;
+
+  const optionsRes = await send({ type: 'getOptions' });
+  const options = optionsRes?.options || {};
+  let notifyEnabled = options.notifyAny !== false;
+
+  const updateNotifyUI = () => {
+    notifyBtn.innerHTML = notifyEnabled ? icons.bell : icons.bellOff;
+    notifyBtn.classList.toggle('iconbtn--active', notifyEnabled);
+    notifyBtn.title = notifyEnabled ? 'Notifications ON — click to mute' : 'Notifications OFF — click to turn on';
+  };
+
+  updateNotifyUI();
+
+  notifyBtn.addEventListener('click', async () => {
+    notifyEnabled = !notifyEnabled;
+    updateNotifyUI();
+    await send({ type: 'saveOptions', options: { ...options, notifyAny: notifyEnabled } });
+  });
+}
+
+async function initLoginBanner() {
+  const loginDesc = document.getElementById('login-banner-desc');
+  const loginAction = document.getElementById('login-banner-action');
+  const loginBtn = document.getElementById('login-btn');
+  if (!loginDesc || !loginAction || !loginBtn) return;
+
+  const optionsRes = await send({ type: 'getOptions' });
+  const options = optionsRes?.options || {};
+
+  const currentEmail = options.userEmail || options.email || null;
+
+  if (currentEmail) {
+    loginDesc.textContent = currentEmail;
+    loginBtn.textContent = 'Logged in';
+    loginBtn.style.background = 'rgba(71, 205, 137, 0.2)';
+    loginBtn.style.color = '#47cd89';
+    loginBtn.style.border = '1px solid rgba(71, 205, 137, 0.4)';
+  } else {
+    loginBtn.addEventListener('click', () => {
+      loginAction.innerHTML = `
+        <input type="email" id="user-email-input" class="login-card-banner__input" placeholder="Enter email..." />
+        <button id="save-email-btn" class="gemini-btn-login" style="padding:0 10px;">Save</button>
+      `;
+      const emailInput = document.getElementById('user-email-input');
+      const saveBtn = document.getElementById('save-email-btn');
+      emailInput.focus();
+
+      saveBtn.addEventListener('click', async () => {
+        const val = emailInput.value.trim();
+        if (!val || !val.includes('@')) return;
+        saveBtn.disabled = true;
+        saveBtn.textContent = '...';
+
+        await send({ type: 'saveOptions', options: { ...options, userEmail: val } });
+        loginDesc.textContent = val;
+        loginAction.innerHTML = `
+          <button class="gemini-btn-login" style="background:rgba(71, 205, 137, 0.2);color:#47cd89;border:1px solid rgba(71, 205, 137, 0.4);">Logged in</button>
+        `;
+      });
+    });
+  }
+}
+
 (async function init() {
   document.getElementById('wordmark').insertAdjacentHTML('afterbegin', eyeMark);
   document.getElementById('refresh').innerHTML = icons.refresh;
@@ -398,5 +464,9 @@ document.getElementById('settings').addEventListener('click', () => chrome.runti
   if (bellEl) bellEl.innerHTML = icons.bell;
   document.getElementById('settings').innerHTML = icons.sliders;
 
+<<<<<<< HEAD
   await Promise.all([refreshList(), renderBanner(), renderEmailCard()]);
+=======
+  await Promise.all([refreshList(), renderBanner(), initNotifyToggle(), initLoginBanner()]);
+>>>>>>> 5d301d8445d3c19b4a2a08f803b6206e2e64289a
 })();

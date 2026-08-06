@@ -26,7 +26,12 @@ export const icons = {
   check: svg('<path d="M3.2 8.4 6.3 11.5l6.5-7"/>'),
   close: svg('<path d="M4 4l8 8M12 4l-8 8"/>'),
   external: svg('<path d="M9.4 3h3.6v3.6"/><path d="M13 3 7.6 8.4"/><path d="M11.4 9.6v3.4H3V4.6h3.4"/>'),
+<<<<<<< HEAD
   bell: svg('<path d="M4 11a4 4 0 0 0 8 0V7a4 4 0 0 0-8 0v4z"/><path d="M2.5 11h11"/><path d="M6.5 13.5a1.5 1.5 0 0 0 3 0"/>'),
+=======
+  bell: svg('<path d="M12 5a4 4 0 0 0-8 0c0 4.5-1.5 6-1.5 6h11s-1.5-1.5-1.5-6"/><path d="M9.17 13a1.5 1.5 0 0 1-2.34 0"/>'),
+  bellOff: svg('<path d="M9.17 13a1.5 1.5 0 0 1-2.34 0"/><path d="M3.5 3.5l9 9"/><path d="M12 5a4 4 0 0 0-7.3-2.3"/><path d="M2.5 11h9.5s-1.5-1.5-1.5-6"/>'),
+>>>>>>> 5d301d8445d3c19b4a2a08f803b6206e2e64289a
 };
 
 /** The wordmark glyph: an iris. Sized by the caller via CSS. */

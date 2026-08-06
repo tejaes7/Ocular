@@ -11,8 +11,6 @@ export default function Hero({ onAddProductFromUrl }) {
     if (!inputUrl.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
-    // Stands in for the real tracking call. The confirmation is surfaced through
-    // the app-level toast rather than a second inline one.
     setTimeout(() => {
       onAddProductFromUrl?.(inputUrl);
       setInputUrl('');
@@ -24,9 +22,7 @@ export default function Hero({ onAddProductFromUrl }) {
     <section className="relative z-20 pt-4 pb-8 md:pt-6 md:pb-12 px-3 sm:px-6 lg:px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto relative z-20">
 
-        {/* Curved Blue Card Container. Padding is a step down from the original
-            now that the link form and download button have gone — the old p-24
-            left the panel mostly empty space. */}
+        {/* Curved Blue Card Container */}
         <motion.div
           initial={{ opacity: 0, y: 40, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
@@ -83,8 +79,6 @@ export default function Hero({ onAddProductFromUrl }) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                // Same accent pair as the Register and "Get Started" buttons:
-                // #7bb9f2 with #14283f ink. White text here would be 2.09:1.
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl theme-accent-bg theme-accent-bg-hover font-semibold text-xs shrink-0 flex items-center justify-center gap-1.5 shadow-md transition-[transform,box-shadow,background-color] duration-200 transform-gpu hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-70"
               >
                 {isSubmitting ? (
