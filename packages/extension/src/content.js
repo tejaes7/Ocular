@@ -320,13 +320,19 @@ function renderIntroPanel(panel) {
     observed.ok && Number.isFinite(observed.price)
       ? money(observed.price, observed.currency)
       : 'Not readable here';
+  const isOos = observed.ok && observed.inStock === false;
 
   panel.innerHTML = panelShell({
     body: `
       <div class="ocular-panel__lede">Not watched</div>
+      ${isOos ? '<div class="ocular-panel__msg ocular-panel__msg--bad" style="margin-bottom: 12px;">Currently unavailable (Out of stock)</div>' : ''}
       <div class="ocular-panel__cards-container">
         <div class="ocular-panel__row ocular-panel__row--hero">
-          <span>Price now</span><b>${escapeHtml(priceNow)}</b>
+          <span>Price now</span>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+            <b>${escapeHtml(priceNow)}</b>
+            ${isOos ? '<span class="ocular-badge--oos">Out of stock</span>' : ''}
+          </div>
         </div>
         <div class="ocular-panel__row">
           <span>Readings</span><b>0</b>
@@ -368,9 +374,10 @@ function renderPanelError(panel, text) {
 function renderPanel(panel, state) {
   const { product, stats, autoChecks, visitChecks, version } = state;
   const currency = product.currency;
+  const isOos = product.lastInStock === false;
 
   const rows = [
-    ['Current', money(product.lastPrice, currency), true],
+    ['Current', money(product.lastPrice, currency), true, isOos],
     stats && ['Lowest seen', money(stats.min, currency)],
     stats && ['Usual price', money(stats.median90, currency)],
     ['Last checked', relativeTime(product.lastCheckedAt)],
@@ -399,12 +406,17 @@ function renderPanel(panel, state) {
   panel.innerHTML = panelShell({
     body: `
       <p class="ocular-panel__title">${escapeHtml(product.title)}</p>
+      ${isOos ? '<div class="ocular-panel__msg ocular-panel__msg--bad" style="margin-bottom: 12px;">Currently unavailable (Out of stock)</div>' : ''}
       <div class="ocular-panel__cards-container">
         ${rows
           .map(
-            ([label, value, hero]) =>
+            ([label, value, hero, oos]) =>
               `<div class="ocular-panel__row${hero ? ' ocular-panel__row--hero' : ''}">
-                 <span>${label}</span><b>${escapeHtml(value)}</b>
+                 <span>${label}</span>
+                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                   <b>${escapeHtml(value)}</b>
+                   ${oos ? '<span class="ocular-badge--oos">Out of stock</span>' : ''}
+                 </div>
                </div>`
           )
           .join('')}
