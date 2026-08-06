@@ -29,12 +29,12 @@ export default function Footer() {
               Ocular is your automated e-commerce price tracking assistant. Get notified when your bookmarked items hit their all-time lowest price.
             </p>
 
-            {/* Social Icons. Placeholder destinations — swap in the real handles. */}
+            {/* Social Icons */}
             <div className="flex items-center gap-3 pt-1">
               {[
-                { label: 'Facebook', href: 'https://facebook.com', Icon: FacebookIcon },
-                { label: 'X', href: 'https://x.com', Icon: XIcon },
-                { label: 'Instagram', href: 'https://instagram.com', Icon: InstagramIcon },
+                { label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61592742821104', Icon: FacebookIcon },
+                { label: 'X', href: 'https://x.com/ocularxvision57', Icon: XIcon },
+                { label: 'Instagram', href: 'https://www.instagram.com/ocularxvision/', Icon: InstagramIcon },
               ].map(({ label, href, Icon }) => (
                 <a
                   key={label}

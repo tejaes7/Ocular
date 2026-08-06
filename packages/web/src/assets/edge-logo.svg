@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="24" height="24">
+  <defs>
+    <radialGradient id="edge-a" cx="72.68%" cy="17.4%" r="83.33%" fx="72.68%" fy="17.4%" gradientTransform="matrix(-.88876 .45837 -.45837 -.88876 145.2 14.63)">
+      <stop offset="0%" stop-color="#0c8484"/>
+      <stop offset="100%" stop-color="#12b3bd"/>
+    </radialGradient>
+    <radialGradient id="edge-b" cx="30.22%" cy="84.6%" r="68.83%" fx="30.22%" fy="84.6%" gradientTransform="matrix(.89476 -.44655 .44655 .89476 -34.6 28.53)">
+      <stop offset="0%" stop-color="#0b5567"/>
+      <stop offset="46%" stop-color="#0078d4"/>
+      <stop offset="100%" stop-color="#1f93ff"/>
+    </radialGradient>
+    <radialGradient id="edge-c" cx="78.13%" cy="83.18%" r="61.76%" fx="78.13%" fy="83.18%" gradientTransform="matrix(.72422 -.68957 .68957 .72422 -35.8 88.08)">
+      <stop offset="0%" stop-color="#24b673"/>
+      <stop offset="100%" stop-color="#43ec97"/>
+    </radialGradient>
+  </defs>
+  <path fill="url(#edge-a)" d="M128 17C66.7 17 17 66.7 17 128c0 48.7 31.4 89.9 75.2 104.9-6.3-10.7-9.9-23.2-9.9-36.5 0-50.5 40.9-91.4 91.4-91.4 19.8 0 38.1 6.3 53.1 17-1.1-6.1-2.9-12-5.4-17.6C209.3 55.4 172.5 17 128 17z"/>
+  <path fill="url(#edge-b)" d="M128 17c63.7 0 115.8 49.3 123.6 111.9.8 6.3 1.2 12.7 1.2 19.1 0 68.5-55.5 124-124 124-29.3 0-56.3-10.2-77.7-27.3 30.1-3.9 53.7-29.5 53.7-60.7 0-33.8-27.4-61.2-61.2-61.2-7 0-13.8 1.2-20.1 3.4 16-43.6 57.9-74.8 106.3-74.8z"/>
+  <path fill="url(#edge-c)" d="M234.3 136c0 68.5-55.5 124-124 124-23.7 0-45.9-6.6-64.9-18.1 36.1-7.3 63.3-39 63.3-77 0-43.8-35.5-79.3-79.3-79.3-6.8 0-13.5 1-19.8 2.8C23.1 72.8 65.3 34 116 34c70.7 0 127.3 57.3 127.3 128c0 2.7-.1 5.3-.3 8z"/>
+</svg>
