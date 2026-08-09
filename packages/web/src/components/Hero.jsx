@@ -26,6 +26,11 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
       const { installed } = await detectExtension();
 
       if (!installed) {
+        // Nothing to hand the link to. Two responses, deliberately paired:
+        // the modal is the actionable one (it carries the install link), and
+        // the nudge marks the navbar button so the page still reads as the
+        // answer once the modal is dismissed. Neither reports a failure the
+        // visitor cannot act on.
         onOpenDownload?.();
         nudgeInstall();
         return;
@@ -39,6 +44,8 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
         onAddProductFromUrl?.(url, result || { ok: false });
       }
     } catch {
+      // The relay never answered — same outcome as not installed, so the same
+      // pair of responses.
       onOpenDownload?.();
       nudgeInstall();
     } finally {
