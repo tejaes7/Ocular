@@ -464,9 +464,5 @@ async function initLoginBanner() {
   if (bellEl) bellEl.innerHTML = icons.bell;
   document.getElementById('settings').innerHTML = icons.sliders;
 
-<<<<<<< HEAD
   await Promise.all([refreshList(), renderBanner(), renderEmailCard()]);
-=======
-  await Promise.all([refreshList(), renderBanner(), initNotifyToggle(), initLoginBanner()]);
->>>>>>> 5d301d8445d3c19b4a2a08f803b6206e2e64289a
 })();
