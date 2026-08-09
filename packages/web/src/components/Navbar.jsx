@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Logo from './Logo';
 import edgeLogoUrl from '../assets/edge-logo.png';
 import chromeLogoUrl from '../assets/chrome-logo.png';
 import braveLogoUrl from '../assets/brave-logo.png';
+import { NUDGE_INSTALL_EVENT } from '../lib/extension';
 
 function detectBrowser() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return 'chrome';
@@ -75,6 +76,38 @@ export default function Navbar({ onOpenDownload }) {
     setBrowserKey(detectBrowser());
   }, []);
 
+  // Pasting a product link with no extension installed asks this button to
+  // announce itself.
+  //
+  // Driven straight through a ref rather than React state. A CSS animation only
+  // replays if the class is removed, layout is recomputed, and it is added back;
+  // reading offsetWidth forces that reflow synchronously. Doing the same via
+  // state needed a frame between the two renders, which meant leaning on
+  // requestAnimationFrame — and anywhere that does not fire (a background tab,
+  // a headless viewport) the class was simply never re-applied.
+  const installRef = useRef(null);
+  useEffect(() => {
+    let timer = null;
+
+    const onNudge = () => {
+      const el = installRef.current;
+      if (!el) return;
+
+      el.classList.remove('ocular-nudge');
+      void el.offsetWidth; // reflow, so the animation restarts on a repeat paste
+      el.classList.add('ocular-nudge');
+
+      clearTimeout(timer);
+      timer = setTimeout(() => el.classList.remove('ocular-nudge'), 1000);
+    };
+
+    window.addEventListener(NUDGE_INSTALL_EVENT, onNudge);
+    return () => {
+      window.removeEventListener(NUDGE_INSTALL_EVENT, onNudge);
+      clearTimeout(timer);
+    };
+  }, []);
+
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b theme-border backdrop-blur-xl theme-bg-card">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -86,6 +119,7 @@ export default function Navbar({ onOpenDownload }) {
         {/* Install, it's free CTA button without white circular background */}
         <button
           onClick={onOpenDownload}
+          ref={installRef}
           className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-[#f0f5ff] hover:bg-[#e4edff] text-[#1e295d] font-bold text-xs sm:text-sm border border-[#d5e3ff] shadow-xs hover:shadow transition-all duration-200 cursor-pointer transform-gpu hover:-translate-y-0.5"
           title={`Install Ocular for ${browserKey}`}
         >

@@ -1,21 +1,50 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link2, ArrowRight, RefreshCw } from 'lucide-react';
+import HeroDoodles from './HeroDoodles';
+import { detectExtension, trackViaExtension, nudgeInstall } from '../lib/extension';
 
 export default function Hero({ onAddProductFromUrl }) {
   const [inputUrl, setInputUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
+  /**
+   * Hand the link to the extension, or point at the install button.
+   *
+   * This used to be theatre: it ignored the URL entirely and popped a toast
+   * claiming the product had been added. Tracking needs extraction from the
+   * store page itself, which only the extension can do — so the honest paths are
+   * "hand it over" or "you need the extension first".
+   */
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!inputUrl.trim() || isSubmitting) return;
+    const url = inputUrl.trim();
+    if (!url || isSubmitting) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      onAddProductFromUrl?.(inputUrl);
-      setInputUrl('');
+    try {
+      const { installed } = await detectExtension();
+
+      if (!installed) {
+        // Nothing to hand off to. Draw the eye to the install button rather
+        // than reporting a failure the visitor cannot act on.
+        nudgeInstall();
+        return;
+      }
+
+      const result = await trackViaExtension(url);
+      if (result?.ok) {
+        setInputUrl('');
+        onAddProductFromUrl?.(url, result);
+      } else {
+        onAddProductFromUrl?.(url, result || { ok: false });
+      }
+    } catch {
+      // The relay never answered — same outcome as not installed.
+      nudgeInstall();
+    } finally {
       setIsSubmitting(false);
-    }, 600);
+    }
   };
 
   return (
@@ -28,8 +57,10 @@ export default function Hero({ onAddProductFromUrl }) {
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full rounded-[3rem] bg-gradient-to-b from-[#92c6f5] via-[#7bb9f2] to-[#64acef] text-[#14283f] px-8 py-14 sm:px-16 sm:py-20 md:py-24 shadow-2xl shadow-[#7bb9f2]/40 text-center space-y-5 border border-white/40 transform-gpu"
+          className="relative overflow-hidden w-full rounded-[3rem] bg-gradient-to-b from-[#92c6f5] via-[#7bb9f2] to-[#64acef] text-[#14283f] px-8 py-14 sm:px-16 sm:py-20 md:py-24 shadow-2xl shadow-[#7bb9f2]/40 text-center space-y-5 border border-white/40 transform-gpu"
         >
+          <HeroDoodles />
+
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -53,6 +84,7 @@ export default function Hero({ onAddProductFromUrl }) {
           {/* Product link tracker */}
           <motion.form
             onSubmit={handleSubmit}
+            autoComplete="off"
             initial={{ opacity: 0, y: 25 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -60,10 +92,24 @@ export default function Hero({ onAddProductFromUrl }) {
             className="pt-3 max-w-xl mx-auto"
           >
             <div className="bg-white/95 backdrop-blur-md rounded-2xl p-1.5 sm:p-2 flex flex-col sm:flex-row items-center gap-2 shadow-xl border border-white/50">
-              <label htmlFor="track-url" className="sr-only">
-                Product link
-              </label>
-              <div className="flex items-center gap-2.5 w-full px-3 py-1.5 sm:py-0">
+              {/*
+                The label wraps the field rather than sitting beside it, so the
+                whole padded box is one click target — and one cursor region.
+
+                autoComplete="off" and the missing `name` are what stop the
+                browser offering previously submitted links back on focus. That
+                history is the browser's own, keyed on the control's name; a
+                field without a name has nothing to look up. Nothing in this app
+                ever stored those URLs, which is why there was no state to clear.
+                The value is read from React state rather than form
+                serialisation, so dropping the name costs nothing.
+              */}
+              <label
+                htmlFor="track-url"
+                id="track-url-field"
+                className="flex items-center gap-2.5 w-full px-3 py-1.5 sm:py-0"
+              >
+                <span className="sr-only">Product link</span>
                 <Link2 className="text-[#7bb9f2] shrink-0" size={16} aria-hidden="true" />
                 <input
                   id="track-url"
@@ -73,8 +119,12 @@ export default function Hero({ onAddProductFromUrl }) {
                   placeholder="Paste product link to track price..."
                   className="w-full bg-transparent text-slate-900 placeholder:text-slate-400 text-xs font-normal focus:outline-none"
                   required
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                 />
-              </div>
+              </label>
 
               <button
                 type="submit"

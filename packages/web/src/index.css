@@ -161,13 +161,27 @@ video {
   to { transform: rotate(var(--angle)) translateY(-19px) scaleY(1); opacity: 0; }
 }
 
-/* Text fields previously kept the I-beam. That was the single biggest source of
-   the cursor "resetting" as you moved across the page, so the custom arrow wins
-   here too — the trade is that the caret affordance is gone from the URL field. */
+/* Text fields keep the custom arrow. They were the single biggest source of the
+   cursor "resetting" as you moved across the page — every field crossed was a
+   flicker to the I-beam and back. */
 input,
 textarea,
 [contenteditable] {
   cursor: var(--cursor-arrow), text;
+}
+
+/* …with one deliberate exception: the hero's paste-link field.
+   It is the primary action on the page and it is a *text* field people are meant
+   to click into and paste over, so the I-beam is doing real work there — it says
+   "type here" in a way the arrow does not. The flicker problem the rule above
+   solves does not apply, because this is one field inside a white box rather
+   than a run of controls scattered along a scroll path.
+
+   The wrapper is included so the padding around the input reads as part of the
+   same target; it is what the label click area covers. */
+#track-url,
+#track-url-field {
+  cursor: text;
 }
 
 /* Disabled controls get `not-allowed` from the UA stylesheet. Keep the custom
@@ -175,6 +189,51 @@ textarea,
 [disabled],
 [aria-disabled='true'] {
   cursor: var(--cursor-arrow), not-allowed;
+}
+
+/* Install nudge.
+   Fired when someone pastes a product link with no extension installed — there
+   is nothing to hand the link to, so the button that fixes that says so.
+
+   A band of brand colour slides across rather than a shake: a shake reads as an
+   error (it is the same gesture a wrong password gets), and nothing has gone
+   wrong here. The sweep is a pointer, not a rebuke. The ring stays for the whole
+   nudge so the button is still marked after the band has passed.
+
+   `overflow: hidden` and `border-radius: inherit` keep the band inside the
+   button's pill shape instead of running past its rounded ends. */
+.ocular-nudge {
+  position: relative;
+  overflow: hidden;
+  outline: 2px solid var(--primary-accent);
+  outline-offset: 3px;
+}
+
+.ocular-nudge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 15%,
+    rgba(123, 185, 242, 0.15) 35%,
+    rgba(123, 185, 242, 0.6) 50%,
+    rgba(123, 185, 242, 0.15) 65%,
+    transparent 85%
+  );
+  animation: ocular-sweep 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ocular-sweep {
+  from { transform: translateX(-115%); }
+  to { transform: translateX(115%); }
+}
+
+/* Reduced motion keeps the ring — the meaning survives without the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .ocular-nudge::after { animation: none; opacity: 0; }
 }
 
 /* Tech grid overlay.

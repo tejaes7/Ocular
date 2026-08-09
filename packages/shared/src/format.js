@@ -42,11 +42,15 @@ export function escapeHtml(text) {
 export function explainError(code) {
   return (
     {
-      blocked: 'The site blocked the check. Ocular will retry later.',
+      blocked: 'The site blocked this check. Ocular will back off and retry later.',
       'http-error': 'The site returned an error.',
       gone: 'This product page no longer exists.',
       'no-price': "Couldn't find a price on the page.",
-      'fetch-failed': 'Network request failed.',
+      // Not a failure of the product, and the old wording ("Network request
+      // failed") read like one. The site refused an automated request, which is
+      // expected on large retailers; prices still update whenever the user opens
+      // the page, so say that rather than leaving them thinking it is broken.
+      'fetch-failed': "Couldn't check automatically — the site refused. Prices still update when you open the page.",
       'tab-timeout': 'The page took too long to load.',
       'parse-error': 'The page could not be read.',
       'no-strategy': 'No working way to check this site yet.',
