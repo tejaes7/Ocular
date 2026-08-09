@@ -30,6 +30,21 @@ const DOM_SETTLE_MS = 250;
 let lastUrl = location.href;
 let evaluateTimer = null;
 
+// Mark document root so web pages know the extension is installed
+try {
+  document.documentElement.dataset.ocularInstalled = 'true';
+} catch (e) {}
+
+// Listen for custom track requests from web pages
+window.addEventListener('OCULAR_TRACK_LINK', (event) => {
+  const url = event?.detail?.url;
+  if (url) {
+    chrome.runtime.sendMessage({ action: 'UPSERT', url }, (res) => {
+      window.dispatchEvent(new CustomEvent('OCULAR_TRACK_RESPONSE', { detail: res }));
+    });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Messaging
 // ---------------------------------------------------------------------------

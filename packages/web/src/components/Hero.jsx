@@ -4,7 +4,7 @@ import { Link2, ArrowRight, RefreshCw } from 'lucide-react';
 import HeroDoodles from './HeroDoodles';
 import { detectExtension, trackViaExtension, nudgeInstall } from '../lib/extension';
 
-export default function Hero({ onAddProductFromUrl }) {
+export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
   const [inputUrl, setInputUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,8 +26,7 @@ export default function Hero({ onAddProductFromUrl }) {
       const { installed } = await detectExtension();
 
       if (!installed) {
-        // Nothing to hand off to. Draw the eye to the install button rather
-        // than reporting a failure the visitor cannot act on.
+        onOpenDownload?.();
         nudgeInstall();
         return;
       }
@@ -40,7 +39,7 @@ export default function Hero({ onAddProductFromUrl }) {
         onAddProductFromUrl?.(url, result || { ok: false });
       }
     } catch {
-      // The relay never answered — same outcome as not installed.
+      onOpenDownload?.();
       nudgeInstall();
     } finally {
       setIsSubmitting(false);

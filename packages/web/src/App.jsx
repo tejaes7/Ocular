@@ -56,7 +56,10 @@ function LandingPage() {
 
       <Navbar onOpenDownload={() => setIsDownloadOpen(true)} />
 
-      <Hero onAddProductFromUrl={handleAddProductFromUrl} />
+      <Hero
+        onAddProductFromUrl={handleAddProductFromUrl}
+        onOpenDownload={() => setIsDownloadOpen(true)}
+      />
 
       <StoresBar />
 

@@ -74,6 +74,27 @@ chrome.runtime.onStartup.addListener(async () => {
   await syncIfEnabled().catch(() => {});
 });
 
+// Listen for tracking requests from the website
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+  if (request.action === 'PING') {
+    // Responds to confirm the extension is installed
+    sendResponse({ installed: true, version: chrome.runtime.getManifest().version });
+    return true;
+  }
+
+  if (request.action === 'TRACK_PRODUCT') {
+    const { url } = request;
+    console.log('Received track link from website:', url);
+    
+    // Save/add product to extension store logic here
+    // upsertProduct({ url, ... });
+
+    sendResponse({ ok: true, message: 'Product added to extension tracker' });
+    return true;
+  }
+});
+
+
 async function scheduleAlarms() {
   const settings = await getSettings();
   // chrome.alarms clamps anything under 1 minute in a packed extension.

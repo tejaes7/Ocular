@@ -174,5 +174,12 @@
         "https://www.decathlon.com/*"
       ]
     }
-  ]
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://ocular-web-three.vercel.app/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*"
+    ]
+  }
 }
