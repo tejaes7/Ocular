@@ -97,6 +97,14 @@ export default function Navbar({ onOpenDownload }) {
       void el.offsetWidth; // reflow, so the animation restarts on a repeat paste
       el.classList.add('ocular-nudge');
 
+      // The sweep is the visual half; this is the half that actually takes you
+      // there. Focus is what makes it work for someone not using a mouse — the
+      // button is announced and is the next thing Enter will press, rather than
+      // being a colour change they cannot see. `preventScroll` keeps focus from
+      // yanking the page while the smooth scroll is still running.
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      el.focus({ preventScroll: true });
+
       clearTimeout(timer);
       timer = setTimeout(() => el.classList.remove('ocular-nudge'), 1000);
     };

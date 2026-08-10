@@ -236,6 +236,82 @@ textarea,
   .ocular-nudge::after { animation: none; opacity: 0; }
 }
 
+/* Hero artwork: entry, then float.
+   Two elements per piece, because both effects are transforms and one element
+   holds exactly one `transform` — see the note in HeroDoodles.jsx. The wrapper
+   flies outward from behind the headline; the image inside drifts forever.
+
+   --dx/--dy are written by HeroDoodles at mount: the offset from each piece's
+   resting place back to the centre of the "Ocular" wordmark. Starting there and
+   transitioning to zero is what makes them look like they came out from behind
+   the text rather than merely fading up where they already were. */
+/* Held invisible at rest until the vectors have been measured. Nothing here
+   animates on its own: the reveal is a keyframe animation added with the
+   `is-ready` class, because a transition fired before the first paint has no
+   committed "before" style to leave and gets skipped — which loses the travel
+   and leaves a plain fade. */
+.hero-doodle {
+  opacity: 0;
+  transform: rotate(var(--rot, 0deg));
+  will-change: transform, opacity;
+}
+
+.hero-doodles.is-ready .hero-doodle {
+  animation: hero-emerge 900ms cubic-bezier(0.22, 1, 0.36, 1) var(--delay, 0ms) both;
+}
+
+/* `both` matters: backwards fill keeps each piece hidden at the headline during
+   its stagger delay, and forwards fill holds it at rest afterwards. */
+@keyframes hero-emerge {
+  from {
+    opacity: 0;
+    transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.35) rotate(var(--rot, 0deg));
+  }
+  to {
+    opacity: var(--to-opacity, 0.4);
+    transform: translate(0, 0) scale(1) rotate(var(--rot, 0deg));
+  }
+}
+
+.hero-doodle__img {
+  display: block;
+  width: 100%;
+}
+
+/* Held back until the entry has landed. Starting both at once reads as one
+   confused motion rather than an arrival followed by a drift. */
+.hero-doodles.is-ready .hero-doodle__img {
+  animation: hero-float var(--float-dur, 8s) ease-in-out infinite;
+  animation-delay: calc(var(--delay, 0ms) + 900ms);
+}
+
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(1.1deg);
+  }
+}
+
+/* Reduced motion: no travel, no drift. The pieces are decorative, so the honest
+   degradation is simply having them present at their resting opacity. The
+   global block below zeroes the durations, but `transform` still has to be
+   neutralised explicitly — otherwise they snap in from the headline in one
+   frame, which is a flinch rather than an animation. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-doodles.is-ready .hero-doodle {
+    animation: none;
+    opacity: var(--to-opacity, 0.4);
+    transform: rotate(var(--rot, 0deg));
+  }
+
+  .hero-doodles.is-ready .hero-doodle__img {
+    animation: none;
+  }
+}
+
 /* Tech grid overlay.
    Two repeating-linear-gradients rather than an SVG or an image: it costs one
    painted layer, no network request, and scales to any viewport. The radial mask

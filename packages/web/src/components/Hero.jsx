@@ -4,7 +4,7 @@ import { Link2, ArrowRight, RefreshCw } from 'lucide-react';
 import HeroDoodles from './HeroDoodles';
 import { detectExtension, trackViaExtension, nudgeInstall } from '../lib/extension';
 
-export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
+export default function Hero({ onAddProductFromUrl }) {
   const [inputUrl, setInputUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,12 +26,14 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
       const { installed } = await detectExtension();
 
       if (!installed) {
-        // Nothing to hand the link to. Two responses, deliberately paired:
-        // the modal is the actionable one (it carries the install link), and
-        // the nudge marks the navbar button so the page still reads as the
-        // answer once the modal is dismissed. Neither reports a failure the
-        // visitor cannot act on.
-        onOpenDownload?.();
+        // Nothing to hand the link to, so point at the thing that fixes that.
+        //
+        // This used to open the download modal as well. One response is better
+        // than two: the modal covered the very button it was telling you about,
+        // and dismissing it left you back where you started. The nudge moves
+        // focus to the install button instead, so the answer is on screen and
+        // already under the cursor — and keyboard users are taken there rather
+        // than having a dialog thrown in front of them.
         nudgeInstall();
         return;
       }
@@ -45,8 +47,7 @@ export default function Hero({ onAddProductFromUrl, onOpenDownload }) {
       }
     } catch {
       // The relay never answered — same outcome as not installed, so the same
-      // pair of responses.
-      onOpenDownload?.();
+      // response.
       nudgeInstall();
     } finally {
       setIsSubmitting(false);
