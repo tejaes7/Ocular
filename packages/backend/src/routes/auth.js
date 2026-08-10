@@ -49,7 +49,8 @@ export async function getCurrentUser(request, env, verify = verifyFirebaseToken)
     } catch (err) {
         // The token itself is never logged — it is a bearer credential and the
         // logs are not the place for one.
-        console.error("[Auth] Firebase verification failed:", err?.message ?? err);
+        const error = /** @type {any} */ (err);
+        console.error("[Auth] Firebase verification failed:", error?.message || String(error));
         return fail("INVALID_TOKEN", "Invalid Firebase token", 401);
     }
 
@@ -68,7 +69,8 @@ export async function getCurrentUser(request, env, verify = verifyFirebaseToken)
 
         user = await upsertUser(env.DB, firebaseUser);
     } catch (err) {
-        console.error("[Auth] Could not persist user:", err?.message ?? err);
+        const error = /** @type {any} */ (err);
+        console.error("[Auth] Could not persist user:", error?.message || String(error));
         return fail("PERSIST_FAILED", "Could not persist user", 500);
     }
 

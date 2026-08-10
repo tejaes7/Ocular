@@ -57,17 +57,18 @@ export async function handleLink(request, env, verify = verifyFirebaseToken) {
     try {
       await linkDeviceToUser(env, deviceBearer, null, Date.now());
       return json({ ok: true, linked: false });
-    } catch (error) {
-      console.error('[Link] Could not unlink device:', error?.message ?? error);
+    } catch (err) {
+      const error = /** @type {any} */ (err);
+      console.error('[Link] Could not unlink device:', error?.message || String(error));
       return fail('PERSIST_FAILED', 'Could not unlink this device', 500);
     }
   }
 
   const bearer = bearerTokenFrom(request);
-  if (bearer.error === 'MISSING') {
-    return fail('MISSING_AUTH_HEADER', 'Authorization header missing', 401);
-  }
-  if (bearer.error === 'MALFORMED') {
+  if ('error' in bearer) {
+    if (bearer.error === 'MISSING') {
+      return fail('MISSING_AUTH_HEADER', 'Authorization header missing', 401);
+    }
     return fail('MALFORMED_AUTH_HEADER', 'Expected an Authorization: Bearer <token> header', 401);
   }
 
@@ -82,9 +83,10 @@ export async function handleLink(request, env, verify = verifyFirebaseToken) {
   let firebaseUser;
   try {
     firebaseUser = await verify(bearer.token, env);
-  } catch (error) {
+  } catch (err) {
     // Never log the token: it is a bearer credential.
-    console.error('[Link] Firebase verification failed:', error?.message ?? error);
+    const error = /** @type {any} */ (err);
+    console.error('[Link] Firebase verification failed:', error?.message || String(error));
     return fail('INVALID_TOKEN', 'Invalid Firebase token', 401);
   }
 
@@ -113,8 +115,9 @@ export async function handleLink(request, env, verify = verifyFirebaseToken) {
 
     await linkDeviceToUser(env, deviceId, user.id, now);
     return json({ ok: true, linked: true, email: user.email });
-  } catch (error) {
-    console.error('[Link] Could not link device:', error?.message ?? error);
+  } catch (err) {
+    const error = /** @type {any} */ (err);
+    console.error('[Link] Could not link device:', error?.message || String(error));
     return fail('PERSIST_FAILED', 'Could not link this device', 500);
   }
 }
