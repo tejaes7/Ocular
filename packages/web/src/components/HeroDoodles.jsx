@@ -108,6 +108,7 @@ export default function HeroDoodles() {
      * travel mysteriously missing.
      */
     const place = () => {
+      layer.dataset.probe = `${(layer.dataset.probe || '')}|${layer.offsetWidth}`;
       if (!layer.offsetWidth) return false;
 
       const origin = originOf(layer);
