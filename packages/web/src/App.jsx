@@ -25,7 +25,9 @@ export default function App() {
 
 function LandingPage() {
   const [isDownloadOpen, setIsDownloadOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
+  const [toastMessage, setToastMessage] = useState(
+    /** @type {string | null} */ (null)
+  );
 
   const handleAddProductFromUrl = () => {
     setToastMessage('Product link parsed! Added to Ocular price tracker');
@@ -45,7 +47,7 @@ function LandingPage() {
     <div className="min-h-screen theme-bg-main theme-text-main relative">
       {/* Looping particle-wave video, behind everything. Renders nothing until
           public/background.mp4 exists. */}
-      <VideoBackground />
+      <VideoBackground poster="/background-poster.png" />
 
       {/* Tech grid overlay. Fixed and masked, so it sits above the video plate
           but below every section — depth without competing with the copy. */}
